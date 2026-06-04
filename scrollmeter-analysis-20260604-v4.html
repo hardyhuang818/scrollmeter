@@ -209,17 +209,18 @@ table.main tr:hover td{background:#fafafa;}
 
 <!-- Background workload -->
 <div class="alert info">
-  <h3>🎬 测试环境负载 · 两组反事实对照 / Background Workload — Two Counterfactuals</h3>
-  <p>A/B/C 三组都不是空闲基准，<b>每组都有 3 块活跃显示器</b>。差异只在两件事：<b>滚动渲染目标是哪台屏</b>，以及那台屏<b>用什么 cable 接出去</b>。<br>
-     <em>All three trackpad groups had <b>3 active displays each</b> and were NOT idle baselines. What differs is which display is the scroll target and how it's connected.</em></p>
+  <h3>🎬 测试环境负载 · 三组对照 / Background Workload — Three Controls</h3>
+  <p>A/B/C 三组都不是空闲基准，<b>每组都有 3 块活跃显示器</b>；D 组合盖 Clamshell，只用 2 块外接屏。差异在三件事：<b>滚动目标是哪台屏</b>、那台屏<b>用什么 cable 接出去</b>、<b>输入设备是触控板还是鼠标</b>。<br>
+     <em>A/B/C had <b>3 active displays each</b> and were NOT idle baselines. D was lid-closed (Clamshell) using only 2 external displays. What differs: which display is the scroll target, how it's connected, and whether input is trackpad or mouse.</em></p>
   <table>
-    <tr><th>Group</th><th>屏 1 / Display 1</th><th>屏 2 / Display 2</th><th>屏 3 / Display 3</th><th style="text-align:center;">DL 流数<br>/ streams</th></tr>
+    <tr><th>Group</th><th>屏 1 / Display 1</th><th>屏 2 / Display 2</th><th>屏 3 / Display 3</th><th style="text-align:center;">DL 流数<br>streams</th><th style="text-align:center;">输入<br>Input</th></tr>
     <tr>
       <td><b>A</b></td>
       <td style="background:#dcfce7;"><b>内置屏 120Hz · 触控板滚动</b><br>Built-in · trackpad scroll</td>
       <td>DisplayLink → 4K 60Hz<br>YouTube 全屏 / fullscreen</td>
       <td>DisplayLink → 4K 60Hz<br>表格全屏 / Spreadsheet fullscreen</td>
       <td style="text-align:center;"><b>2</b></td>
+      <td style="text-align:center;">🖐️</td>
     </tr>
     <tr>
       <td><b>B</b></td>
@@ -227,6 +228,7 @@ table.main tr:hover td{background:#fafafa;}
       <td style="background:#dcfce7;"><b>内置 HDMI → ASUS PG27</b><br>Built-in HDMI · trackpad scroll</td>
       <td>DisplayLink → 4K 60Hz<br>YouTube 全屏 / fullscreen</td>
       <td style="text-align:center;"><b>1</b></td>
+      <td style="text-align:center;">🖐️</td>
     </tr>
     <tr style="background:#fef2f2;">
       <td><b>C</b></td>
@@ -234,8 +236,19 @@ table.main tr:hover td{background:#fafafa;}
       <td style="color:var(--red);"><b>DisplayLink → ASUS PG27</b><br>DisplayLink · trackpad scroll</td>
       <td>DisplayLink → 4K 60Hz<br>YouTube 全屏 / fullscreen</td>
       <td style="text-align:center;"><b>2</b><br><small>(含滚动目标<br>incl. scroll)</small></td>
+      <td style="text-align:center;">🖐️</td>
+    </tr>
+    <tr style="background:#eff6ff;">
+      <td><b>D</b> ★</td>
+      <td>内置屏 · 关闭 Clamshell<br>Built-in · OFF (lid closed)</td>
+      <td style="background:#dcfce7;"><b>HBP Hub HDMI → 4K 60Hz</b><br>mouse scroll · 鼠标滚动</td>
+      <td>HBP Hub HDMI → 4K 60Hz<br>活跃显示 / active</td>
+      <td style="text-align:center;"><b>0</b><br><small>(TB HW bridge<br>硬件桥接)</small></td>
+      <td style="text-align:center;">🖱️</td>
     </tr>
   </table>
+  <p style="font-size:.78rem;color:var(--orange);margin-top:6px;">★ D 组合盖触控板不可用，用外接鼠标；CV/输入延迟与 A/B/C 不可比，但帧交付指标（Hitch / FPS）依然有效。<br>
+     <em>★ D used an external mouse (trackpad unavailable in Clamshell). CV/input-latency not comparable with A/B/C, but Hitch/FPS metrics remain valid.</em></p>
 
   <p style="margin-top:16px;"><b>① A vs C — 排除"DisplayLink 后台负载量有罪"</b><br>
      <b>Rules out background-load hypothesis</b></p>
@@ -247,8 +260,18 @@ table.main tr:hover td{background:#fafafa;}
   <p>B 和 C 滚动目标是<b>同一台物理 ASUS PG27 4K60</b>，相同内容、相同触控板、相同 3 块活跃屏。唯一区别：cable 路径——B 走内置 HDMI（硬件视频引擎），C 走 DisplayLink（USB 软编码）。结果：B 0 hitch，C 10–12 ms/s。<br>
      <em>B and C scroll on <b>the same physical ASUS PG27 4K60</b> with the same content, trackpad, and 3 active displays. Only the cable path differs — built-in HDMI (hardware video engine) for B, DisplayLink (USB software encoder) for C. B → 0 hitch, C → 10–12 ms/s. Rules out "the monitor itself is at fault".</em></p>
 
-  <p style="margin-top:14px;background:#fef3c7;padding:10px 14px;border-radius:6px;"><b>两条对照同时成立，把所有干扰因素都剥干净，只剩一个变量：滚动渲染目标的传输路径是否经过 DisplayLink。</b><br>
-     <em>Both counterfactuals hold simultaneously, stripping away every confound. Only one variable remains: <b>whether the scroll rendering target's transport path goes through DisplayLink</b>.</em></p>
+  <p style="margin-top:14px;"><b>③ D 正面对照 — 排除"4K 分辨率太高 / 外接屏数量太多"</b><br>
+     <b>Positive control — rules out resolution &amp; display-count hypotheses</b></p>
+  <p>D 组合盖 Clamshell，<b>同时驱动 2 块 4K 60Hz 外接屏</b>，但走 HBP Hub 的 Thunderbolt 硬件视频桥接（与内置 HDMI 同级），<b>完全不经过 DisplayLink</b>。结果：Hitch = 0，FPS 稳定 60.0。这把可能剩下的两个备选解释也排除了：<br>
+     <em>D drove <b>2× 4K 60Hz external displays simultaneously</b> via HBP Hub's Thunderbolt hardware video bridge (same tier as built-in HDMI), with <b>no DisplayLink involved</b>. Result: 0 hitch, steady 60.0 fps. This rules out the two remaining alternative hypotheses:</em></p>
+  <ul style="margin:6px 0 0 22px;font-size:.83rem;line-height:1.65;">
+    <li>❌ "4K 60Hz 这种规格的外接屏天生卡" / "4K 60Hz resolution is inherently too much" — D 同时推 2 块 4K 60Hz 仍 0 hitch</li>
+    <li>❌ "外接屏数量太多 macOS 处理不过来" / "macOS struggles with multiple external displays" — D 推 2 块外接屏仍 0 hitch</li>
+  </ul>
+
+  <p style="margin-top:14px;background:#fef3c7;padding:12px 14px;border-radius:6px;"><b>结合三组对照（A vs C 控制 DL 负载、B vs C 控制监视器、D 正面控制 4K/数量），所有干扰因素都被剥干净，只剩一个变量：</b><br>
+     <b>滚动渲染目标的传输路径是否经过 DisplayLink。</b> DisplayLink 的 USB 软编码链路是滚动卡顿的唯一原因，与负载、监视器、分辨率、外接屏数量均无关。<br>
+     <em>Combining the three controls — <b>A vs C</b> (DL load), <b>B vs C</b> (monitor), <b>D</b> (4K/count positive control) — every confound is stripped. Only one variable remains: <b>whether the scroll rendering target's transport path goes through DisplayLink</b>. DisplayLink's USB software encoding is the sole cause of jank, independent of load, monitor, resolution, or display count.</em></p>
 </div>
 
 <!-- Critical Notice -->

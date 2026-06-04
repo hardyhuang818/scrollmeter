@@ -34,16 +34,20 @@
 
 ---
 
-## 🎬 测试环境负载 / Sustained Background Workload (A/B/C groups)
+## 🎬 测试环境负载 / Sustained Background Workload (All groups)
 
-A/B/C 三组都不是空闲基准，**每组都有 3 块活跃显示器**。差异只在两件事：**滚动渲染目标是哪台屏**、以及那台屏**用什么 cable 接出去**。
-All three trackpad groups (A/B/C) had **3 active displays each**; what differs is which display is the scroll target and how it's connected.
+A/B/C 三组都不是空闲基准，**每组都有 3 块活跃显示器**。D 组关盖（Clamshell），只用 2 块外接屏。差异只在三件事：**滚动渲染目标是哪台屏**、那台屏**用什么 cable 接出去**、**输入设备是触控板还是鼠标**。
+A/B/C had **3 active displays each** and were NOT idle baselines. D had the lid closed (Clamshell) and used only the 2 external displays. What differs is which display is the scroll target, how it's connected, and whether input is trackpad or mouse.
 
-| Group | 屏 1 (Display 1) | 屏 2 (Display 2) | 屏 3 (Display 3) | DisplayLink<br>流数 |
-|---|---|---|---|:---:|
-| **A** | **内置屏 120Hz · 触控板滚动**<br>Built-in · trackpad scroll | DisplayLink → 4K 60Hz · YouTube 全屏 | DisplayLink → 4K 60Hz · 表格全屏<br>Spreadsheet fullscreen | **2** |
-| **B** | 内置屏 · 活跃但非滚动目标<br>Built-in · active, not scroll target | **内置 HDMI → ASUS PG27 · 触控板滚动**<br>Built-in HDMI → ASUS PG27 · trackpad scroll | DisplayLink → 4K 60Hz · YouTube 全屏 | **1** |
-| **C** | 内置屏 · 活跃但非滚动目标<br>Built-in · active, not scroll target | **DisplayLink → ASUS PG27 · 触控板滚动**<br>DisplayLink → ASUS PG27 · trackpad scroll | DisplayLink → 4K 60Hz · YouTube 全屏 | **2**<br>（含滚动目标 incl. scroll）|
+| Group | 屏 1 (Display 1) | 屏 2 (Display 2) | 屏 3 (Display 3) | DisplayLink<br>流数 | 输入 Input |
+|---|---|---|---|:---:|:---:|
+| **A** | **内置屏 120Hz · 触控板滚动**<br>Built-in · trackpad scroll | DisplayLink → 4K 60Hz · YouTube 全屏 | DisplayLink → 4K 60Hz · 表格全屏<br>Spreadsheet fullscreen | **2** | 🖐️ |
+| **B** | 内置屏 · 活跃但非滚动目标<br>Built-in · active, not scroll target | **内置 HDMI → ASUS PG27 · 触控板滚动**<br>Built-in HDMI → ASUS PG27 · trackpad scroll | DisplayLink → 4K 60Hz · YouTube 全屏 | **1** | 🖐️ |
+| **C** | 内置屏 · 活跃但非滚动目标<br>Built-in · active, not scroll target | **DisplayLink → ASUS PG27 · 触控板滚动**<br>DisplayLink → ASUS PG27 · trackpad scroll | DisplayLink → 4K 60Hz · YouTube 全屏 | **2**<br>（含滚动目标 incl. scroll）| 🖐️ |
+| **D** ★ | 内置屏 · 关闭 Clamshell<br>Built-in · OFF (lid closed) | **HBP Hub HDMI → 4K 60Hz · 鼠标滚动**<br>HBP Hub HDMI → 4K 60Hz · mouse scroll | HBP Hub HDMI → 4K 60Hz · 活跃<br>HBP Hub HDMI → 4K 60Hz · active | **0**<br>（TB 硬件桥接<br>TB HW bridge）| 🖱️ |
+
+> ★ D 组合盖 Clamshell 触控板不可用，用外接鼠标；CV/输入延迟与 A/B/C 不可比，但帧交付指标（Hitch / FPS）依然有效。
+> ★ D was Clamshell-only — trackpad unavailable, used an external mouse. CV/input-latency are not comparable with A/B/C, but frame-delivery metrics (Hitch/FPS) remain valid.
 
 ---
 
@@ -74,6 +78,26 @@ B and C scroll on **the same physical ASUS PG27 4K60** with the same content, sa
 
 **Both counterfactuals hold simultaneously, stripping away every confound. Only one variable remains:**
 **whether the scroll rendering target's transport path goes through DisplayLink.**
+
+---
+
+### ③ D 组正面对照 — 排除"4K 分辨率太高 / 外接屏数量太多" / Positive control — rules out resolution & display count
+
+D 组合盖 Clamshell，**同时驱动 2 块 4K 60Hz 外接屏**，但走 HBP Hub 的 Thunderbolt 硬件视频桥接（与内置 HDMI 同级）而**完全不经过 DisplayLink**。结果：Hitch = 0，FPS 稳定 60.0。
+
+这把可能剩下的两个备选解释也排除掉了：
+- ❌ "4K 60Hz 这种规格的外接屏天生卡" — D 同时推 2 块 4K 60Hz 仍 0 hitch
+- ❌ "外接屏数量太多 macOS 处理不过来" — D 推 2 块 4K 仍 0 hitch
+
+**D was Clamshell-only, driving 2× 4K 60Hz external displays simultaneously via the HBP Hub's Thunderbolt hardware video bridge (same tier as built-in HDMI), with NO DisplayLink involved.** Result: 0 hitch, steady 60.0 fps.
+
+This rules out the two remaining alternative hypotheses:
+- ❌ "4K 60Hz external resolution is inherently too much" — D drove 2× 4K 60Hz with 0 hitch
+- ❌ "macOS struggles with multiple external displays" — D drove 2 external screens with 0 hitch
+
+**结合三组对照（A vs C、B vs C、D 正面控制），DisplayLink 的 USB 软编码链路是滚动卡顿的唯一原因，与负载、监视器、分辨率、外接屏数量均无关。**
+
+**Combining the three controls (A vs C, B vs C, D as positive control), DisplayLink's USB software encoding is the sole cause of scroll jank — independent of load, monitor, resolution, or display count.**
 
 ---
 
