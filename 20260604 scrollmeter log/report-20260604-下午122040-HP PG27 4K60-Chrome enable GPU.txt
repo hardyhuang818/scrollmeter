@@ -1,0 +1,43 @@
+
+======== Scroll Smoothness Report  v1.4 ========
+
+Display         : 60.0 Hz   (16.67 ms/frame budget)
+Scroll duration : 10.03 s
+Scrolled        : 19597 pt
+Scroll events   : 541  (54/s)
+Frames sampled  : 541
+
+-- Frame interval (ms) --
+  mean          : 18.54
+  median        : 18.64
+  p95           : 22.02
+  p99           : 24.66
+  max           : 25.81
+  std dev       : 2.20
+  effective FPS : 53.9
+
+-- Hitches (interval > 1.5x budget) --
+  count         : 4 / 540  (0.74%)
+  total time    : 101.2 ms
+  ratio         : 10.09 ms hitched per sec of scroll
+  verdict       : felt as jank
+                    (<5 smooth, 5-10 borderline, >10 felt)
+
+-- Input-to-display latency (touchpad event → next frame) --
+  samples       : 540
+  mean          : 9.15 ms
+  p95           : 18.21 ms
+  p99           : 20.17 ms
+  max           : 21.31 ms
+  verdict       : excellent (<1 frame)
+                    (ideal <16.67 ms = 1 frame)
+
+-- Visual smoothness (per-frame scroll delta) --
+  mean          : 44.13 pt/frame
+  std dev       : 37.04 pt/frame
+  coef of var   : 0.84   choppy
+                    (lower = more uniform motion)
+  stuck frames  : 98 / 540
+                    (frames where no scroll delta arrived)
+
+===================================================

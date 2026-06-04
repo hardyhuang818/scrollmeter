@@ -1,0 +1,24 @@
+# --- Large binaries we don't track ---
+# Xcode Command Line Tools installer (~500 MB; over GitHub's 100 MB hard limit)
+*.dmg
+*.pkg
+
+# Distribution bundles (regenerable)
+*.zip
+
+# Compiled binary (built locally by build-universal.command on a Mac)
+/scrollmeter
+
+# --- macOS noise ---
+.DS_Store
+._*
+
+# --- Build / IDE noise ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Trace output (generated when you run the benchmark) ---
+/traces/
+*.trace

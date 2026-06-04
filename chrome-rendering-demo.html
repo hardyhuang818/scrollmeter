@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Chrome 滚动渲染对比 / Scroll Rendering Pipeline Demo</title>
+<style>
+:root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: #d2d2d7;
+    --sw: #e74c3c;
+    --gpu: #27ae60;
+    --js: #f39c12;
+    --layout: #3498db;
+    --paint: #9b59b6;
+    --gpu-proc: #16a085;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0; padding: 28px;
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+}
+h1 { margin: 0 0 4px; font-size: 22px; }
+.subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+
+.card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; margin-bottom: 20px;
+}
+.card h2 { margin: 0 0 14px; font-size: 16px; }
+
+/* ---- Pipeline diagram ---- */
+.pipeline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.pipeline-col h3 { margin: 0 0 10px; font-size: 14px; }
+.pipeline-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; margin-bottom: 5px;
+    background: #f5f5f7; border-radius: 5px; font-size: 13px;
+}
+.who {
+    display: inline-block; width: 92px; font-size: 11px; font-weight: 600;
+    color: white; padding: 3px 0; border-radius: 4px; text-align: center;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.who.main { background: var(--sw); }
+.who.comp { background: var(--gpu); }
+.who.gpu-p { background: var(--gpu-proc); }
+.pipeline-row.highlight { background: #fff4e0; font-weight: 600; }
+.pipeline-note {
+    margin-top: 10px; font-size: 12px; color: var(--muted);
+    padding-left: 10px; border-left: 3px solid var(--border);
+}
+
+.legend { margin-top: 16px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend .item { display: flex; align-items: center; gap: 6px; }
+.legend .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+/* ---- Controls ---- */
+.controls {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+}
+button {
+    padding: 9px 16px; font-size: 14px; font-weight: 500;
+    background: #1d1d1f; color: white; border: none; border-radius: 8px;
+    cursor: pointer; transition: background .15s;
+}
+button:hover { background: #424245; }
+button.warn { background: var(--js); }
+button.warn:hover { background: #d6850b; }
+button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+button.ghost:hover { background: #f0f0f3; }
+.speed-ctrl {
+    margin-left: auto; display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
+}
+.speed-ctrl input { width: 140px; }
+
+/* ---- Demo panes ---- */
+.panes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pane {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+}
+.pane-header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.pane-header strong { font-size: 14px; }
+.badge {
+    font-size: 11px; padding: 4px 9px; border-radius: 12px;
+    color: white; font-weight: 600;
+}
+.badge.sw { background: var(--sw); }
+.badge.gpu { background: var(--gpu); }
+
+.browser {
+    height: 280px; overflow: hidden; position: relative; background: #f0f0f0;
+}
+.scroll-content {
+    position: absolute; left: 0; top: 0; width: 100%;
+    will-change: transform;
+}
+.row {
+    height: 40px; padding: 0 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px;
+}
+.row .pill {
+    background: rgba(0,0,0,0.06); padding: 2px 8px; border-radius: 8px;
+    font-size: 11px;
+}
+.frozen-overlay {
+    position: absolute; inset: 0; display: none;
+    background: rgba(231, 76, 60, 0.12); pointer-events: none;
+    align-items: center; justify-content: center;
+    color: var(--sw); font-weight: 600; font-size: 13px;
+    border: 2px dashed var(--sw);
+}
+.frozen-overlay.show { display: flex; }
+
+.timeline-block { padding: 10px 14px 12px; background: #fafafa; border-top: 1px solid var(--border); }
+.timeline-label {
+    font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    display: flex; justify-content: space-between;
+}
+.timeline-track {
+    height: 14px; background: #eaeaea; border-radius: 3px;
+    position: relative; overflow: hidden;
+}
+.timeline-track + .timeline-label { margin-top: 8px; }
+.block {
+    position: absolute; top: 0; height: 100%;
+    border-right: 1px solid rgba(255,255,255,0.4);
+}
+.block.js     { background: var(--js); }
+.block.layout { background: var(--layout); }
+.block.paint  { background: var(--paint); }
+.block.frame  { background: var(--gpu); }
+
+.stats {
+    padding: 12px 16px; background: #fafafa; border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px;
+}
+.stats .num { font-weight: 700; font-size: 14px; }
+.stats .label { color: var(--muted); font-size: 11px; display: block; margin-bottom: 2px; }
+.num.ok  { color: var(--gpu); }
+.num.bad { color: var(--sw); }
+
+.note {
+    margin-top: 18px; padding: 12px 16px;
+    background: #fff8e1; border-left: 3px solid #fbc02d;
+    border-radius: 4px; font-size: 13px; color: #6d4c00;
+}
+.note em { color: #8a5e00; }
+
+@media (max-width: 900px) {
+    .pipeline-grid, .panes { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<h1>Chrome 滚动渲染对比 / Scroll Rendering Pipeline</h1>
+<p class="subtitle">
+关闭 vs 开启 GPU 加速 · 主线程被 JS 卡住时，滚动会发生什么<br>
+Software vs GPU-accelerated · what happens to scroll when JS blocks the main thread
+</p>
+
+<!-- Pipeline diagram -->
+<div class="card">
+    <h2>渲染管线 · Rendering pipeline</h2>
+    <div class="pipeline-grid">
+        <div class="pipeline-col">
+            <h3 style="color:var(--sw)">✗ 关闭 GPU 加速 · Software path</h3>
+            <div class="pipeline-row"><span class="who main">Main</span>JavaScript 执行</div>
+            <div class="pipeline-row"><span class="who main">Main</span>样式 / Style</div>
+            <div class="pipeline-row"><span class="who main">Main</span>布局 / Layout</div>
+            <div class="pipeline-row"><span class="who main">Main</span>绘制 / Paint</div>
+            <div class="pipeline-row"><span class="who main">Main</span>栅格化 / Raster (Skia CPU)</div>
+            <div class="pipeline-row"><span class="who main">Main</span>合成 / Composite</div>
+            <div class="pipeline-row highlight"><span class="who main">Main</span>📜 滚动 / Scroll</div>
+            <p class="pipeline-note">
+                所有阶段在主线程上排队。JS 一卡，连滚动一起卡死。<br>
+                All stages queue on the main thread. JS blocks ⇒ scroll freezes.
+            </p>
+        </div>
+        <div class="pipeline-col">
+            <h3 style="color:var(--gpu)">✓ 开启 GPU 加速 · GPU-composited path</h3>
+            <div class="pipeline-row"><span class="who main">Main</span>JavaScript 执行</div>
+            <div class="pipeline-row"><span class="who main">Main</span>样式 / Style</div>
+            <div class="pipeline-row"><span class="who main">Main</span>布局 / Layout</div>
+            <div class="pipeline-row"><span class="who main">Main</span>绘制 / Paint (录指令)</div>
+            <div class="pipeline-row"><span class="who gpu-p">GPU Proc</span>栅格化 / Raster (Metal)</div>
+            <div class="pipeline-row"><span class="who comp">Compositor</span>合成 / Composite</div>
+            <div class="pipeline-row highlight"><span class="who comp">Compositor</span>📜 滚动 / Scroll</div>
+            <p class="pipeline-note">
+                滚动在独立的合成器线程，主线程 JS 卡死它照样跑。<br>
+                Scroll runs on a separate compositor thread. Survives a blocked main thread.
+            </p>
+        </div>
+    </div>
+    <div class="legend">
+        <div class="item"><span class="swatch" style="background:var(--sw)"></span>主线程 / Main Thread</div>
+        <div class="item"><span class="swatch" style="background:var(--gpu)"></span>合成器线程 / Compositor Thread</div>
+        <div class="item"><span class="swatch" style="background:var(--gpu-proc)"></span>GPU 进程 / GPU Process</div>
+        <div class="item"><span class="swatch" style="background:var(--js)"></span>JS 任务 / JS task</div>
+        <div class="item"><span class="swatch" style="background:var(--layout)"></span>Layout</div>
+        <div class="item"><span class="swatch" style="background:var(--paint)"></span>Paint</div>
+    </div>
+</div>
+
+<!-- Controls -->
+<div class="card">
+    <h2>互动演示 · Live demo</h2>
+    <div class="controls">
+        <button id="btn-js" class="warn">⚡ 注入 500ms JS 任务 / Inject 500ms JS block</button>
+        <button id="btn-reset" class="ghost">↺ 重置 / Reset</button>
+        <div class="speed-ctrl">
+            滚动速度 / Speed: <input type="range" id="speed" min="50" max="500" value="200">
+            <span id="speed-val">200</span> px/s
+        </div>
+    </div>
+    <div class="controls" style="margin-top:12px;">
+        <strong style="color:var(--js);">🔥 持续 CPU 压力 / Sustained CPU load:</strong>
+        <input type="range" id="cpu-load" min="0" max="90" value="30" style="flex:1;max-width:300px;">
+        <span id="cpu-load-val" style="font-family:ui-monospace,monospace;min-width:42px;">30%</span>
+        <span style="color:var(--muted);font-size:12px;">
+            (模拟广告脚本/复杂网页持续占用主线程 / simulates background JS chewing the main thread)
+        </span>
+    </div>
+</div>
+
+<!-- Live panes -->
+<div class="panes">
+    <div class="pane">
+        <div class="pane-header">
+            <strong>✗ 关闭 GPU 加速 · Software</strong>
+            <span class="badge sw">CPU only — scroll on main thread</span>
+        </div>
+        <div class="browser" id="win-sw">
+            <div class="scroll-content" id="content-sw"></div>
+            <div class="frozen-overlay" id="freeze-sw">⏸ 主线程被 JS 占满 · Main thread blocked by JS</div>
+        </div>
+        <div class="timeline-block">
+            <div class="timeline-label"><span>主线程活动 · Main thread</span><span>← 3s ago … now</span></div>
+            <div class="timeline-track" id="track-sw"></div>
+        </div>
+        <div class="stats" id="stats-sw"></div>
+    </div>
+
+    <div class="pane">
+        <div class="pane-header">
+            <strong>✓ 开启 GPU 加速 · GPU-composited</strong>
+            <span class="badge gpu">Scroll on compositor thread</span>
+        </div>
+        <div class="browser" id="win-gpu">
+            <div class="scroll-content" id="content-gpu"></div>
+        </div>
+        <div class="timeline-block">
+            <div class="timeline-label"><span>主线程 · Main thread</span><span>← 3s ago … now</span></div>
+            <div class="timeline-track" id="track-gpu-main"></div>
+            <div class="timeline-label"><span>合成器线程 · Compositor thread</span><span>(GPU 帧)</span></div>
+            <div class="timeline-track" id="track-gpu-comp"></div>
+        </div>
+        <div class="stats" id="stats-gpu"></div>
+    </div>
+</div>
+
+<div class="note">
+    <strong>这不是真实测试 / This is NOT a real benchmark</strong> —
+    它是一个单线程 JS 示意动画，左右两侧用同一段 rAF 驱动；之所以能看出差异，是因为我们
+    <em>人为模拟</em> 了"主线程被 JS 占住"这一事件，并让左侧（软件路径）滚动跟着停，右侧（GPU 路径）
+    继续走。<br><br>
+    <strong>怎么读这个 demo / How to read it:</strong>
+    <ul style="margin:6px 0 6px 18px;">
+        <li>🔥 滑杆 = 模拟"持续 CPU 压力"。默认 30%，左边软件路径已经看得到掉帧、FPS 下降，右边 GPU 路径 60 不动。</li>
+        <li>把滑杆拉到 60%+，左边滚动开始明显卡顿，右边继续顺滑——这就是 GPU 加速的真实价值。</li>
+        <li>⚡ 按钮 = 一次性 500ms JS 阻塞峰值。左边整窗冻住、右边照常走。</li>
+        <li>红色"Frames missed"计数差距、左边时间轴上的橙色 JS 块，就是关键信号。</li>
+    </ul>
+    <strong>想做真实测试 / For real measurement</strong>: 用本仓库的 <code>run-bench.command</code>，
+    然后一边滚动一边在另一个终端跑 <code>yes &gt; /dev/null &amp; yes &gt; /dev/null &amp;</code>
+    (Ctrl-C 终止) 给系统加 CPU 压力, 对比 hitch ratio 的变化。
+</div>
+
+<script>
+// ---------- Build colorful scrollable content ----------
+function fillContent(el) {
+    const html = [];
+    for (let i = 0; i < 300; i++) {
+        const hue = (i * 18) % 360;
+        html.push(
+            `<div class="row" style="background:hsl(${hue},45%,93%)">` +
+            `<span>Row ${i.toString().padStart(3,'0')} — scrollable content</span>` +
+            `<span class="pill">#${(0xa00000 + i*0x1234).toString(16).slice(-6)}</span>` +
+            `</div>`
+        );
+    }
+    el.innerHTML = html.join('');
+}
+fillContent(document.getElementById('content-sw'));
+fillContent(document.getElementById('content-gpu'));
+
+// ---------- State ----------
+const TIMELINE_WINDOW = 3000;     // ms shown in timeline
+const FRAME_BUDGET    = 1000/60;  // virtual 60 Hz target
+const ROW_H           = 40;
+const ROW_COUNT       = 300;
+const VIEW_H          = 280;
+const MAX_POS         = ROW_COUNT * ROW_H - VIEW_H;
+
+const state = {
+    posSw: 0, posGpu: 0,
+    speed: 200,
+    cpuLoad: 0.30,            // 0..1 fraction of main thread occupied by background JS
+    lastTime: performance.now(),
+    jsBlockUntil: 0,
+
+    evSwMain: [],
+    evGpuMain: [],
+    evGpuComp: [],
+
+    framesSw: 0, framesGpu: 0,
+    droppedSw: 0, droppedGpu: 0,
+    startTime: performance.now(),
+
+    // duty-cycle phase tracker (for continuous CPU load simulation)
+    cycleStart: performance.now(),
+};
+const CYCLE_MS = 100; // each 100ms is one duty cycle for background JS
+
+// ---------- DOM refs ----------
+const $ = id => document.getElementById(id);
+const contentSw  = $('content-sw');
+const contentGpu = $('content-gpu');
+const freezeSw   = $('freeze-sw');
+const trackSw    = $('track-sw');
+const trackGpuM  = $('track-gpu-main');
+const trackGpuC  = $('track-gpu-comp');
+const statsSw    = $('stats-sw');
+const statsGpu   = $('stats-gpu');
+
+// ---------- Controls ----------
+$('btn-js').addEventListener('click', () => {
+    const now = performance.now();
+    const dur = 500;
+    if (state.jsBlockUntil > now) return;  // already blocking
+    state.jsBlockUntil = now + dur;
+    state.evSwMain.push({  start: now, end: now+dur, type: 'js' });
+    state.evGpuMain.push({ start: now, end: now+dur, type: 'js' });
+});
+
+$('btn-reset').addEventListener('click', () => {
+    state.posSw = 0; state.posGpu = 0;
+    state.evSwMain = []; state.evGpuMain = []; state.evGpuComp = [];
+    state.framesSw = 0; state.framesGpu = 0; state.droppedSw = 0;
+    state.startTime = performance.now();
+    state.jsBlockUntil = 0;
+});
+
+$('speed').addEventListener('input', e => {
+    state.speed = +e.target.value;
+    $('speed-val').textContent = e.target.value;
+});
+
+$('cpu-load').addEventListener('input', e => {
+    state.cpuLoad = +e.target.value / 100;
+    $('cpu-load-val').textContent = e.target.value + '%';
+});
+
+// ---------- Animation loop ----------
+function loop(now) {
+    const dt = Math.min(0.1, (now - state.lastTime) / 1000);
+    state.lastTime = now;
+    const dx = state.speed * dt;
+
+    // ----- Determine "main thread busy" state -----
+    // (a) explicit 500ms block from button
+    const explicitBlock = now < state.jsBlockUntil;
+    // (b) continuous background JS pressure: during each 100ms cycle, the
+    //     first (cpuLoad * 100)ms keeps the main thread busy.
+    const phase = (now - state.cycleStart) % CYCLE_MS;
+    const backgroundBlock = phase < (state.cpuLoad * CYCLE_MS);
+    const mainBlocked = explicitBlock || backgroundBlock;
+
+    // Record explicit-block bar once when triggered (already done in button
+    // handler). For background load, emit a short JS sliver on each tick
+    // we're in a blocked phase so the timeline shows the busy pattern.
+    if (backgroundBlock && !explicitBlock) {
+        state.evSwMain.push({  start: now-3, end: now, type: 'js' });
+        state.evGpuMain.push({ start: now-3, end: now, type: 'js' });
+    }
+
+    // ----- Software side -----
+    // Scroll runs on the main thread, so any block stops it.
+    if (!mainBlocked) {
+        state.posSw = (state.posSw + dx) % MAX_POS;
+        contentSw.style.transform = `translateY(${-state.posSw}px)`;
+        state.framesSw++;
+        state.evSwMain.push({ start: now-2, end: now-1, type: 'layout' });
+        state.evSwMain.push({ start: now-1, end: now,   type: 'paint'  });
+    } else {
+        state.droppedSw++;
+    }
+    // Show overlay only for the big explicit block (not the rapid duty cycle).
+    if (explicitBlock) freezeSw.classList.add('show');
+    else freezeSw.classList.remove('show');
+
+    // ----- GPU side -----
+    // Compositor thread keeps scroll moving regardless of main-thread block.
+    state.posGpu = (state.posGpu + dx) % MAX_POS;
+    contentGpu.style.transform = `translateY(${-state.posGpu}px)`;
+    state.framesGpu++;
+    state.evGpuComp.push({ start: now-2, end: now, type: 'frame' });
+    if (!mainBlocked) {
+        state.evGpuMain.push({ start: now-2, end: now-1, type: 'layout' });
+        state.evGpuMain.push({ start: now-1, end: now,   type: 'paint'  });
+    }
+
+    // Prune timeline events
+    const cutoff = now - TIMELINE_WINDOW;
+    state.evSwMain  = state.evSwMain.filter(e => e.end > cutoff);
+    state.evGpuMain = state.evGpuMain.filter(e => e.end > cutoff);
+    state.evGpuComp = state.evGpuComp.filter(e => e.end > cutoff);
+
+    drawTimeline(trackSw,   state.evSwMain,  now);
+    drawTimeline(trackGpuM, state.evGpuMain, now);
+    drawTimeline(trackGpuC, state.evGpuComp, now);
+
+    // Stats
+    const secs = (now - state.startTime) / 1000;
+    statsSw.innerHTML = `
+        <div><span class="label">已绘帧 Frames rendered</span><span class="num ${state.framesSw === 0 ? '' : 'ok'}">${state.framesSw}</span></div>
+        <div><span class="label">期间错过的帧 Frames missed</span><span class="num ${state.droppedSw>0?'bad':'ok'}">${state.droppedSw}</span></div>
+        <div><span class="label">滚动位置 Scroll Y</span><span class="num">${state.posSw.toFixed(0)} px</span></div>
+        <div><span class="label">等效 FPS</span><span class="num">${(state.framesSw/secs).toFixed(0)}</span></div>
+    `;
+    statsGpu.innerHTML = `
+        <div><span class="label">已绘帧 Frames rendered</span><span class="num ok">${state.framesGpu}</span></div>
+        <div><span class="label">期间错过的帧 Frames missed</span><span class="num ok">${state.droppedGpu}</span></div>
+        <div><span class="label">滚动位置 Scroll Y</span><span class="num">${state.posGpu.toFixed(0)} px</span></div>
+        <div><span class="label">等效 FPS</span><span class="num">${(state.framesGpu/secs).toFixed(0)}</span></div>
+    `;
+
+    requestAnimationFrame(loop);
+}
+
+function drawTimeline(track, events, now) {
+    const w = track.clientWidth;
+    const cutoff = now - TIMELINE_WINDOW;
+    const html = events.map(e => {
+        const left = ((e.start - cutoff) / TIMELINE_WINDOW) * w;
+        const width = Math.max(1, ((e.end - e.start) / TIMELINE_WINDOW) * w);
+        return `<div class="block ${e.type}" style="left:${left}px;width:${width}px"></div>`;
+    }).join('');
+    track.innerHTML = html;
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

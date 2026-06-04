@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scroll Smoothness Analysis — 2026-06-04 v4</title>
+<style>
+:root{
+  --green:#16a34a;--yellow:#d97706;--red:#dc2626;--blue:#2563eb;--orange:#ea580c;
+  --green-bg:#f0fdf4;--yellow-bg:#fffbeb;--red-bg:#fef2f2;--blue-bg:#eff6ff;--orange-bg:#fff7ed;
+  --border:#e5e7eb;--text:#111827;--muted:#6b7280;--card:#fff;--page:#f9fafb;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--page);color:var(--text);line-height:1.6;padding:32px 16px 64px;}
+.container{max-width:1020px;margin:0 auto;}
+
+.header{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px 32px;margin-bottom:22px;}
+.header h1{font-size:1.4rem;font-weight:700;margin-bottom:6px;}
+.header .sub{font-size:.85rem;color:var(--muted);margin-bottom:14px;}
+.meta-row{display:flex;flex-wrap:wrap;gap:16px;}
+.meta-item{font-size:.82rem;} .meta-item span{color:var(--muted);}
+.vtag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;margin-left:6px;background:#dbeafe;color:#1d4ed8;}
+
+/* Changelog */
+.changelog{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin-bottom:22px;}
+.changelog h3{font-size:.85rem;font-weight:700;margin-bottom:8px;color:#1d4ed8;}
+.changelog ol{padding-left:24px;font-size:.83rem;line-height:1.7;}
+.changelog code{background:#dbeafe;padding:1px 6px;border-radius:3px;font-family:ui-monospace,monospace;font-size:.78rem;}
+
+/* Apple thresholds box */
+.thresholds-box{background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:22px;}
+.thresholds-box h3{font-size:.88rem;font-weight:700;margin-bottom:10px;}
+.thresholds-box table{width:100%;border-collapse:collapse;font-size:.8rem;}
+.thresholds-box th{background:rgba(0,0,0,.05);padding:6px 10px;text-align:left;font-weight:600;}
+.thresholds-box td{padding:6px 10px;border-bottom:1px solid rgba(0,0,0,.06);}
+.thresholds-box tr:last-child td{border-bottom:none;}
+.thresholds-box .src{margin-top:8px;font-size:.76rem;color:var(--muted);}
+.thresholds-box .src a{color:#2563eb;text-decoration:none;}
+
+/* Alert box */
+.alert{border-radius:10px;padding:16px 20px;margin-bottom:22px;border:1px solid;}
+.alert.warning{background:#fffbeb;border-color:#fde68a;}
+.alert.info{background:#eff6ff;border-color:#bfdbfe;}
+.alert h3{font-size:.92rem;font-weight:700;margin-bottom:8px;}
+.alert p{font-size:.835rem;line-height:1.65;margin-bottom:6px;}
+.alert p:last-child{margin-bottom:0;}
+.alert table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:10px;}
+.alert table th{background:rgba(0,0,0,.06);padding:6px 10px;text-align:left;font-weight:600;}
+.alert table td{padding:6px 10px;border-bottom:1px solid rgba(0,0,0,.06);}
+.alert table tr:last-child td{border-bottom:none;}
+
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin-bottom:22px;}
+.section h2{font-size:1.02rem;font-weight:700;margin-bottom:14px;display:flex;align-items:baseline;gap:8px;}
+.section h2 .en{font-size:.77rem;font-weight:400;color:var(--muted);}
+
+/* Table */
+.table-wrap{overflow-x:auto;}
+table.main{width:100%;border-collapse:collapse;font-size:.82rem;}
+table.main th{background:#f3f4f6;padding:9px 10px;text-align:left;font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;}
+table.main td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle;}
+table.main tr:last-child td{border-bottom:none;}
+table.main tr:hover td{background:#fafafa;}
+.num{text-align:right;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+.gh td{background:#f8fafc;font-weight:600;font-size:.77rem;color:var(--muted);letter-spacing:.04em;padding:6px 10px;}
+.mouse-row td{background:#fff7ed;}
+.fix-badge{display:inline-block;font-size:.65rem;font-weight:700;padding:1px 5px;border-radius:3px;background:#fef3c7;color:#92400e;margin-left:3px;}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:.74rem;font-weight:600;white-space:nowrap;}
+.bg{background:var(--green-bg);color:var(--green);}
+.by{background:var(--yellow-bg);color:var(--yellow);}
+.br{background:var(--red-bg);color:var(--red);}
+.bb{background:var(--blue-bg);color:var(--blue);}
+.bo{background:var(--orange-bg);color:var(--orange);}
+
+/* Validity table */
+.validity-table{width:100%;border-collapse:collapse;font-size:.82rem;}
+.validity-table th{background:#f3f4f6;padding:8px 12px;font-weight:600;border-bottom:1px solid var(--border);}
+.validity-table td{padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;}
+.validity-table td:first-child{text-align:left;}
+.validity-table tr:last-child td{border-bottom:none;}
+.v-ok{color:var(--green);font-weight:700;}
+.v-no{color:var(--red);font-weight:700;}
+.v-warn{color:var(--yellow);font-weight:700;}
+
+/* Bar chart */
+.chart-label{font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:8px;}
+.chart-legend{font-size:.78rem;color:var(--muted);margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;}
+.chart-legend .ln{display:inline-flex;align-items:center;gap:6px;}
+.chart-legend .ln::before{content:'';display:inline-block;width:2px;height:14px;background:#374151;opacity:.5;}
+.chart-legend .ln.severe::before{background:var(--red);opacity:.75;}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:.79rem;}
+.bar-label{width:240px;flex-shrink:0;line-height:1.3;}
+.bar-track{flex:1;background:#f3f4f6;border-radius:4px;height:22px;position:relative;}
+.bar-fill{height:100%;border-radius:4px;}
+.bar-fill.g{background:var(--green);}
+.bar-fill.y{background:var(--yellow);}
+.bar-fill.r{background:var(--red);}
+.bar-fill.b{background:var(--blue);}
+.bar-fill.o{background:var(--orange);}
+.bar-val{width:140px;flex-shrink:0;text-align:right;font-family:ui-monospace,monospace;font-size:.78rem;}
+.threshold-line{position:absolute;top:-4px;bottom:-4px;width:2px;}
+.threshold-line.noticeable{background:#374151;opacity:.4;}
+.threshold-line.severe{background:var(--red);opacity:.7;}
+.threshold-label{position:absolute;font-size:.62rem;color:var(--muted);bottom:-18px;white-space:nowrap;transform:translateX(-50%);}
+.threshold-label.severe{color:var(--red);}
+.bar-axis-spacer{height:18px;}
+.bar-note{font-size:.7rem;color:var(--orange);margin-left:4px;}
+
+/* Findings */
+.finding{border-left:4px solid var(--border);padding:14px 16px;margin-bottom:14px;border-radius:0 8px 8px 0;}
+.finding.green{border-color:var(--green);background:var(--green-bg);}
+.finding.yellow{border-color:var(--yellow);background:var(--yellow-bg);}
+.finding.red{border-color:var(--red);background:var(--red-bg);}
+.finding.orange{border-color:var(--orange);background:var(--orange-bg);}
+.finding h3{font-size:.92rem;font-weight:700;margin-bottom:8px;}
+.finding p{font-size:.845rem;line-height:1.65;margin-bottom:6px;}
+.finding p:last-child{margin-bottom:0;}
+.lang{display:inline-block;font-size:.68rem;font-weight:700;padding:1px 5px;border-radius:4px;margin-right:4px;background:rgba(0,0,0,.08);}
+
+/* Row 5 breakdown */
+.breakdown{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-top:12px;font-size:.81rem;}
+.breakdown h4{font-size:.83rem;font-weight:700;margin-bottom:6px;}
+.breakdown ul{padding-left:20px;line-height:1.65;}
+.breakdown ul li{margin-bottom:3px;}
+
+/* Pipeline */
+.pipeline{font-family:ui-monospace,monospace;font-size:.78rem;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:16px 20px;overflow-x:auto;line-height:1.9;margin-top:12px;}
+.pipeline .c{color:#94a3b8;}
+.pipeline .ok{color:#4ade80;}
+.pipeline .bad{color:#f87171;}
+.pipeline .warn{color:#fbbf24;}
+
+/* Priority strip */
+.priority{display:flex;align-items:stretch;flex-wrap:wrap;margin:14px 0 20px;}
+.p-item{border:1px solid var(--border);border-left:none;padding:10px 12px;font-size:.78rem;font-weight:600;display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;min-width:110px;}
+.p-item:first-child{border-left:1px solid var(--border);border-radius:8px 0 0 8px;}
+.p-item:last-child{border-radius:0 8px 8px 0;}
+.p-item small{font-weight:400;color:var(--muted);font-size:.68rem;}
+.p-arrow{display:flex;align-items:center;padding:0 3px;color:var(--muted);}
+
+/* Rec */
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.rec-grid{grid-template-columns:1fr;}}
+.rec-card{border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+.rec-card .icon{font-size:1.15rem;margin-bottom:4px;}
+.rec-card h4{font-size:.82rem;font-weight:700;margin-bottom:4px;}
+.rec-card p{font-size:.78rem;color:#374151;line-height:1.55;}
+
+.footer{text-align:center;font-size:.74rem;color:var(--muted);margin-top:40px;}
+.footer a{color:#2563eb;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>触控板滚动流畅度分析报告 / Scroll Smoothness Analysis <span class="vtag">v4 · 10 Tests</span></h1>
+  <div class="sub">v3 基础上修正延迟数据、采用 Apple 原始阈值、拆解 ⑤ 评级 / On top of v3: latency fix, Apple thresholds, row ⑤ breakdown</div>
+  <div class="meta-row">
+    <div class="meta-item"><span>日期 / Date：</span>2026-06-04</div>
+    <div class="meta-item"><span>设备 / Device：</span>MacBook Pro 14-inch M3</div>
+    <div class="meta-item"><span>外接屏 / Monitor：</span>HP PG27 4K @ 60 Hz</div>
+    <div class="meta-item"><span>Hub：</span>HBP USB-C (Dual HDMI / 双 HDMI)</div>
+    <div class="meta-item"><span>工具 / Tool：</span>ScrollMeter v1.4</div>
+  </div>
+</div>
+
+<!-- v4 Changelog -->
+<div class="changelog">
+  <h3>v4 改动 / Changelog</h3>
+  <ol>
+    <li>修正 ⑦ DisplayLink Chrome OFF 输入延迟：<code>9.15 ms</code> → <code>8.61 ms</code>（v3 误从 ⑥ 复制）<br>
+        <small style="color:#1d4ed8;opacity:.85;">Fixed row ⑦ input latency: 9.15 → 8.61 ms (v3 accidentally copied the ⑥ value)</small></li>
+    <li>Hitch ratio 阈值改用 Apple Tech Talk 10855 原文：<code>&lt; 5 smooth</code> / <code>5–10 noticeable</code> / <code>&gt; 10 severe</code>。原"10 ms/s = 肉眼可感"措辞偏弱，更准确是"严重影响"<br>
+        <small style="color:#1d4ed8;opacity:.85;">Hitch thresholds re-aligned with Apple Tech Talk 10855 wording: the old "10 ms/s = perceptible" was too soft; Apple's term is "greatly impacting"</small></li>
+    <li>⑤ Safari DisplayLink 评级拆解：Hitch 2.56 ms/s ✅ Apple smooth；FPS 56.9/60 ⚠️ 偏低 — 综合评级"临界"是 <b>FPS</b> 拖低，不是 hitch 不合格<br>
+        <small style="color:#1d4ed8;opacity:.85;">Row ⑤ rating split: Hitch 2.56 ms/s is ✅ within Apple's "smooth" range; FPS 56.9/60 is ⚠️ low — the overall "borderline" reflects sub-60Hz FPS, not a hitch failure</small></li>
+  </ol>
+</div>
+
+<!-- Apple thresholds -->
+<div class="thresholds-box">
+  <h3>📐 Apple Hitch Ratio 阈值参考 / Apple's Official Thresholds</h3>
+  <table>
+    <tr><th>范围 Range</th><th>Apple 原话 / Apple wording</th><th>含义 / Meaning</th></tr>
+    <tr><td><b style="color:var(--green)">&lt; 5 ms/s</b></td><td>good, mostly unnoticeable</td><td>流畅，用户大多察觉不到 / Smooth, users barely notice</td></tr>
+    <tr><td><b style="color:var(--yellow)">5 – 10 ms/s</b></td><td>user will notice some interruptions</td><td>用户会注意到中断，建议排查 / Investigate</td></tr>
+    <tr><td><b style="color:var(--red)">&gt; 10 ms/s</b></td><td><b>greatly impacting</b> the user experience</td><td>严重影响体验，立即优化 / Optimize immediately</td></tr>
+  </table>
+  <p class="src">📌 5 ms/s 是"开始能察觉"的下限；10 ms/s 是"严重影响"的下限。<br>
+    5 ms/s is the lower bound of "noticeable"; 10 ms/s is the lower bound of "severely impacting".<br>
+    来源 / Source:
+    <a href="https://developer.apple.com/videos/play/tech-talks/10855/" target="_blank">Apple Tech Talk 10855 — Explore UI animation hitches and the render loop</a></p>
+</div>
+
+<!-- Critical Notice -->
+<div class="alert warning">
+  <h3>⚠️ 重要测试条件说明 / Critical Test Condition Note</h3>
+  <p><strong>D 组（HBP Hub 双 HDMI）使用了不同的输入设备。</strong>MBP 驱动两台外接 4K 显示器时需合上盖子（Clamshell 模式），触控板不可用，实际使用的是<strong>外接鼠标滚轮</strong>，而非 MBP 触控板。</p>
+  <p><strong>Group D (HBP Hub Dual HDMI) used a different input device.</strong> Driving two external 4K displays requires closing the MBP lid (Clamshell mode), so an <strong>external mouse scroll wheel</strong> was used instead of the built-in trackpad.</p>
+  <table>
+    <tr><th>指标 Metric</th><th>触控板 Trackpad（A/B/C 组）</th><th>外接鼠标 Mouse（D 组）</th></tr>
+    <tr><td>事件/秒 Events/s</td><td style="color:var(--green)">53–111 /s</td><td style="color:var(--orange)">15–18 /s</td></tr>
+    <tr><td>总滚动量 Scrolled</td><td style="color:var(--green)">19,000–29,000 pt</td><td style="color:var(--orange)">706–1,083 pt</td></tr>
+    <tr><td>Delta 特性 / Signal type</td><td>连续模拟 + 惯性 Continuous + momentum</td><td>离散步进 Discrete fixed steps</td></tr>
+    <tr><td>CV / 输入延迟可比性 / Comparability</td><td>✅ 组内可比 / comparable within group</td><td>❌ 与触控板组不可比 / not comparable with trackpad groups</td></tr>
+    <tr><td>Hitch / FPS 可比性 / Comparability</td><td>✅ 有效 / valid</td><td>✅ 有效（与输入设备无关）/ valid (input-agnostic)</td></tr>
+  </table>
+</div>
+
+<!-- Full Results Table -->
+<div class="section">
+  <h2>一、完整测试数据 <span class="en">/ Full Test Results</span></h2>
+  <div class="table-wrap">
+  <table class="main">
+    <thead>
+      <tr>
+        <th>#</th><th>接法 Connection</th><th>输入设备 Input</th><th>App</th><th>GPU</th>
+        <th class="num">FPS</th><th class="num">Hitch ratio</th>
+        <th class="num">CV</th><th class="num">延迟 Latency</th><th>评级 Verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="gh"><td colspan="10">A — MBP 内置屏 Built-in display 120Hz（基准 Baseline）· 触控板 Trackpad</td></tr>
+      <tr>
+        <td>①</td><td>内置屏 Built-in</td><td>触控板 Trackpad 🖐️</td><td>Chrome</td><td>ON</td>
+        <td class="num"><b>120.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num">0.64</td><td class="num">4.42 ms</td>
+        <td><span class="badge bg">✅ Smooth 流畅</span></td>
+      </tr>
+      <tr>
+        <td>②</td><td>内置屏 Built-in</td><td>触控板 Trackpad 🖐️</td><td>Chrome</td><td>OFF</td>
+        <td class="num"><b>120.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num">0.49</td><td class="num">4.49 ms</td>
+        <td><span class="badge bg">✅ Smooth 流畅</span></td>
+      </tr>
+      <tr class="gh"><td colspan="10">B — 内置 HDMI Built-in HDMI → HP PG27 4K60（单屏 Single monitor）· 触控板 Trackpad</td></tr>
+      <tr>
+        <td>③</td><td>内置 HDMI Built-in</td><td>触控板 Trackpad 🖐️</td><td>Chrome</td><td>OFF</td>
+        <td class="num"><b>60.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num">0.61</td><td class="num">7.92 ms</td>
+        <td><span class="badge bg">✅ Smooth 流畅</span></td>
+      </tr>
+      <tr>
+        <td>④</td><td>内置 HDMI Built-in</td><td>触控板 Trackpad 🖐️</td><td>Chrome</td><td>ON</td>
+        <td class="num"><b>60.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num">0.66</td><td class="num">6.17 ms</td>
+        <td><span class="badge bg">✅ Smooth 流畅</span></td>
+      </tr>
+      <tr class="gh"><td colspan="10">C — DisplayLink → HP PG27 4K60（单屏 Single monitor）· 触控板 Trackpad</td></tr>
+      <tr>
+        <td>⑤</td><td style="color:var(--yellow)"><b>DisplayLink</b></td><td>触控板 Trackpad 🖐️</td><td>Safari</td><td>—</td>
+        <td class="num" style="color:var(--yellow)">56.9</td>
+        <td class="num" style="color:var(--green)"><b>2.56</b> ms/s</td>
+        <td class="num">0.63</td><td class="num">8.08 ms</td>
+        <td><span class="badge by">⚠️ Low FPS · FPS 偏低</span></td>
+      </tr>
+      <tr>
+        <td>⑥</td><td style="color:var(--red)"><b>DisplayLink</b></td><td>触控板 Trackpad 🖐️</td><td>Chrome</td><td>ON</td>
+        <td class="num" style="color:var(--red)">53.9</td>
+        <td class="num" style="color:var(--red)"><b>10.09</b> ms/s</td>
+        <td class="num" style="color:var(--red)">0.84</td><td class="num">9.15 ms</td>
+        <td><span class="badge br">❌ Severe · 严重</span></td>
+      </tr>
+      <tr>
+        <td>⑦</td><td style="color:var(--red)"><b>DisplayLink</b></td><td>触控板 Trackpad 🖐️</td><td>Chrome</td><td>OFF</td>
+        <td class="num">59.0</td>
+        <td class="num" style="color:var(--red)"><b>12.47</b> ms/s</td>
+        <td class="num" style="color:var(--red)">0.74</td>
+        <td class="num"><b>8.61</b> ms<span class="fix-badge">v4 fix</span></td>
+        <td><span class="badge br">❌ Severe · 严重</span></td>
+      </tr>
+      <tr class="gh"><td colspan="10">D — HBP Hub 双 HDMI → 2×4K 60Hz · ⚠️ 外接鼠标 Mouse（Clamshell 合盖模式）</td></tr>
+      <tr class="mouse-row">
+        <td>⑧</td><td style="color:var(--blue)"><b>HBP Hub 双HDMI Dual HDMI</b></td>
+        <td style="color:var(--orange)"><b>外接鼠标 Mouse 🖱️</b></td><td>Chrome</td><td>ON</td>
+        <td class="num"><b>60.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num" style="color:var(--orange)">0.78 ※</td><td class="num" style="color:var(--orange)">7.77 ms ※</td>
+        <td><span class="badge bb">✅ Smooth frames · 帧流畅</span></td>
+      </tr>
+      <tr class="mouse-row">
+        <td>⑨</td><td style="color:var(--blue)"><b>HBP Hub 双HDMI Dual HDMI</b></td>
+        <td style="color:var(--orange)"><b>外接鼠标 Mouse 🖱️</b></td><td>Chrome</td><td>OFF</td>
+        <td class="num"><b>60.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num" style="color:var(--orange)">0.81 ※</td><td class="num" style="color:var(--orange)">8.84 ms ※</td>
+        <td><span class="badge bb">✅ Smooth frames · 帧流畅</span></td>
+      </tr>
+      <tr class="mouse-row">
+        <td>⑩</td><td style="color:var(--blue)"><b>HBP Hub 双HDMI Dual HDMI</b></td>
+        <td style="color:var(--orange)"><b>外接鼠标 Mouse 🖱️</b></td><td>Safari</td><td>—</td>
+        <td class="num"><b>60.0</b></td><td class="num"><b>0.00</b> ms/s</td>
+        <td class="num" style="color:var(--orange)">0.88 ※</td><td class="num" style="color:var(--orange)">7.63 ms ※</td>
+        <td><span class="badge bb">✅ Smooth frames · 帧流畅</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:.76rem;color:var(--orange);margin-top:10px;">※ 外接鼠标（离散步进）与触控板（连续模拟）特性不同，CV 和输入延迟数据不可与 A/B/C 组横向比较。<br>※ External mouse (discrete steps) vs trackpad (continuous analog) — CV and latency not comparable with Groups A/B/C.</p>
+
+  <div class="breakdown">
+    <h4>⑤ Safari DisplayLink 评级拆解 / Row ⑤ Rating Breakdown</h4>
+    <ul>
+      <li><b>Hitch ratio 2.56 ms/s</b> — <span style="color:var(--green);font-weight:600;">✅ 在 Apple "smooth" 区间（&lt; 5）内 / within Apple's "smooth" range</span></li>
+      <li><b>FPS 56.9 / 60</b> — <span style="color:var(--yellow);font-weight:600;">⚠️ 跑不满刷新率 / Doesn't hit full refresh rate</span>，帧间隔有抖动 std dev 1.60 ms / frame interval std dev 1.60 ms</li>
+      <li>综合"⚠️ FPS 偏低"是因为 <b>FPS 拖低</b>，不是 hitch 不合格 / The lowered rating reflects sub-60Hz FPS, not a hitch failure</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Data Validity -->
+<div class="section">
+  <h2>二、数据有效性说明 <span class="en">/ Data Validity by Metric</span></h2>
+  <table class="validity-table">
+    <thead>
+      <tr><th>指标 Metric</th><th>A 本屏 Built-in<br><small>触控板 Trackpad</small></th><th>B 内置HDMI Built-in HDMI<br><small>触控板 Trackpad</small></th><th>C DisplayLink<br><small>触控板 Trackpad</small></th><th>D HBP Hub<br><small>⚠️ 外接鼠标 Mouse</small></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Hitch ratio</b>（卡顿比率 / Hitch ratio）</td>
+        <td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td>
+      </tr>
+      <tr>
+        <td><b>实测 FPS / Measured FPS</b></td>
+        <td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td>
+      </tr>
+      <tr>
+        <td><b>帧间隔 std dev / Frame-interval std dev</b></td>
+        <td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td><td class="v-ok">✅ Valid 有效</td>
+      </tr>
+      <tr>
+        <td><b>CV</b>（视觉均匀度 / Visual uniformity）</td>
+        <td class="v-ok">✅ Trackpad 触控板</td><td class="v-ok">✅ Trackpad 触控板</td><td class="v-ok">✅ Trackpad 触控板</td><td class="v-no">❌ 鼠标步进，不可比<br>Mouse step pattern, not comparable</td>
+      </tr>
+      <tr>
+        <td><b>输入延迟 / Input latency</b></td>
+        <td class="v-ok">✅ Trackpad 触控板</td><td class="v-ok">✅ Trackpad 触控板</td><td class="v-ok">✅ Trackpad 触控板</td><td class="v-warn">⚠️ 鼠标延迟（不同设备）<br>Mouse latency (different device)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Hitch Bar Chart -->
+<div class="section">
+  <h2>三、Hitch Ratio 对比图 <span class="en">/ Hitch Ratio Comparison — Lower is better</span></h2>
+  <div class="chart-label">两条竖线 = Apple 官方阈值（满刻度 ≈ 14 ms/s）<br>Two vertical lines = Apple's official thresholds (full scale ≈ 14 ms/s)</div>
+  <div class="chart-legend">
+    <span class="ln">5 ms/s — "user will notice"（开始能察觉）</span>
+    <span class="ln severe">10 ms/s — "greatly impacting"（严重影响）</span>
+  </div>
+
+  <div class="bar-row"><div class="bar-label">① MBP built-in 120Hz · Chrome ON 🖐️</div>
+    <div class="bar-track"><div class="bar-fill g" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bg">0.00 ms/s</span></div>
+  </div>
+  <div class="bar-row"><div class="bar-label">② MBP built-in 120Hz · Chrome OFF 🖐️</div>
+    <div class="bar-track"><div class="bar-fill g" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bg">0.00 ms/s</span></div>
+  </div>
+  <div class="bar-row"><div class="bar-label">③ Built-in HDMI · Chrome OFF 🖐️</div>
+    <div class="bar-track"><div class="bar-fill g" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bg">0.00 ms/s</span></div>
+  </div>
+  <div class="bar-row"><div class="bar-label">④ Built-in HDMI · Chrome ON 🖐️</div>
+    <div class="bar-track"><div class="bar-fill g" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bg">0.00 ms/s</span></div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label" style="color:var(--blue);font-weight:600;">⑧ HBP Hub 2×HDMI · Chrome ON 🖱️</div>
+    <div class="bar-track"><div class="bar-fill b" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bb">0.00 ms/s</span><span class="bar-note">mouse 鼠标</span></div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label" style="color:var(--blue);font-weight:600;">⑨ HBP Hub 2×HDMI · Chrome OFF 🖱️</div>
+    <div class="bar-track"><div class="bar-fill b" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bb">0.00 ms/s</span><span class="bar-note">mouse 鼠标</span></div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label" style="color:var(--blue);font-weight:600;">⑩ HBP Hub 2×HDMI · Safari 🖱️</div>
+    <div class="bar-track"><div class="bar-fill b" style="width:.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bb">0.00 ms/s</span><span class="bar-note">mouse 鼠标</span></div>
+  </div>
+  <div class="bar-row"><div class="bar-label">⑤ DisplayLink Safari 🖐️</div>
+    <div class="bar-track"><div class="bar-fill g" style="width:18.3%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge bg">2.56 ms/s</span></div>
+  </div>
+  <div class="bar-row"><div class="bar-label">⑥ DisplayLink Chrome ON 🖐️</div>
+    <div class="bar-track"><div class="bar-fill r" style="width:72.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge br">10.09 ms/s</span></div>
+  </div>
+  <div class="bar-row"><div class="bar-label">⑦ DisplayLink Chrome OFF 🖐️</div>
+    <div class="bar-track"><div class="bar-fill r" style="width:89.1%"></div>
+      <div class="threshold-line noticeable" style="left:35.7%"></div>
+      <div class="threshold-line severe" style="left:71.4%"></div>
+    </div>
+    <div class="bar-val"><span class="badge br">12.47 ms/s</span></div>
+  </div>
+
+  <div class="bar-axis-spacer"></div>
+  <p style="font-size:.75rem;color:var(--muted);margin-top:6px;">
+    🖐️ 触控板 Trackpad &nbsp;·&nbsp; 🖱️ 外接鼠标 External mouse (Clamshell)<br>
+    ⑤ 2.56 ms/s 在 "smooth" 阈值内（&lt; 5），属 Apple 官方"流畅"。⑥ 10.09 / ⑦ 12.47 均超过"严重影响"阈值。<br>
+    <em>⑤ at 2.56 ms/s falls within Apple's "smooth" range (&lt; 5). ⑥ 10.09 and ⑦ 12.47 both exceed the "severely impacting" threshold.</em>
+  </p>
+</div>
+
+<!-- Findings -->
+<div class="section">
+  <h2>四、核心发现 <span class="en">/ Key Findings</span></h2>
+
+  <div class="finding green">
+    <h3>✅ 发现 1：HBP Hub 双 HDMI 帧交付质量完美 / HBP Hub Dual HDMI Frame Delivery Is Perfect</h3>
+    <p><span class="lang">中文</span>HBP Hub 同时驱动两台 4K 60 Hz 显示器，Hitch = 0，精确 60.0 fps，帧间隔 std dev 0.35–0.45 ms，与内置 HDMI 完全相当。HBP Hub 走 Thunderbolt 硬件视频桥接，不经过 DisplayLink 软编码，因此无性能损失。Chrome / Safari、GPU 开关均无影响。</p>
+    <p><span class="lang">EN</span>The HBP Hub drives two 4K 60 Hz displays with zero hitches, steady 60.0 fps, and frame interval std dev of 0.35–0.45 ms — identical to built-in HDMI. It uses Thunderbolt hardware video bridging (not DisplayLink), so there is no encoding overhead. Browser choice and Chrome GPU setting make no difference.</p>
+  </div>
+
+  <div class="finding orange">
+    <h3>⚠️ 发现 2：D 组用的是外接鼠标，触控板体验待补测 / Group D Used a Mouse — Trackpad Experience Pending</h3>
+    <p><span class="lang">中文</span>合盖 Clamshell 模式下触控板无法使用，D 组实际测量的是<b>外接鼠标滚轮</b>行为。鼠标滚轮是离散步进事件（15–18/s）；触控板是连续模拟信号（54–111/s）。两者 CV、stuck frames、输入延迟特征完全不同，不可比较。D 组 CV 0.78–0.88 是鼠标的固有步进特性，不代表显示器渲染质量差。</p>
+    <p><span class="lang">EN</span>In Clamshell mode the built-in trackpad is unavailable; Group D measured an <b>external mouse scroll wheel</b>. A mouse produces discrete step events (15–18/s); a trackpad produces continuous analog events (54–111/s). Their CV, stuck-frame, and latency profiles are fundamentally incomparable. The CV of 0.78–0.88 in Group D reflects the mouse's inherent step nature, not display rendering quality.</p>
+    <p style="margin-top:8px;"><b>补测方案 / Options to test trackpad on HBP Hub dual-monitor setup：</b></p>
+    <p>① 打开盖子（MBP M3 支持 3 外接屏 + 内置屏），使用内置触控板 / Open lid — MBP M3 supports up to 3 external + built-in display, enabling the built-in trackpad<br>
+    ② 保持合盖，连接外接 Magic Trackpad / Keep lid closed, connect an external Magic Trackpad</p>
+  </div>
+
+  <div class="finding red">
+    <h3>🔴 发现 3：DisplayLink 是唯一卡顿来源 / DisplayLink Is the Sole Source of Jank</h3>
+    <p><span class="lang">中文</span>同一台 MBP 同一台显示器：内置 HDMI → Hitch 0；DisplayLink → Hitch 10–12 ms/s（<b>Apple 标准"严重影响"区间</b>）。HBP Hub 双屏 → Hitch 0。所有硬件视频输出路径均无卡顿，问题唯一出在 DisplayLink 的 USB 软编码链路。</p>
+    <p><span class="lang">EN</span>Same MBP, same monitor: built-in HDMI → zero hitches; DisplayLink → 10–12 ms/s (Apple's <b>"severely impacting"</b> range). HBP Hub dual-screen → zero hitches. All hardware video output paths deliver perfect frames; the bottleneck is exclusively DisplayLink's USB software encoding pipeline.</p>
+  </div>
+
+  <div class="finding yellow">
+    <h3>🟡 发现 4：Safari vs Chrome 差异只在 DisplayLink 下有意义 / Browser Difference Only Matters on DisplayLink</h3>
+    <p><span class="lang">中文</span>硬件视频输出（内置 HDMI、HBP Hub）下 Safari 和 Chrome Hitch 均为 0，浏览器选择无影响。只有 DisplayLink 需要优先选 Safari（<b>2.56 ms/s 仍在 Apple "smooth" 区间内</b>；Chrome 10–12 ms/s 已"严重影响"）。DisplayLink + Chrome 关闭 GPU 反而更差（12.47 vs 10.09），因为 CPU 渲染与 USB 软编码竞争 CPU 资源。</p>
+    <p><span class="lang">EN</span>On hardware video output, both browsers achieve zero hitches — browser is irrelevant. Only on DisplayLink does Safari matter (<b>2.56 ms/s, still within Apple's "smooth"</b>; Chrome 10–12 ms/s exceeds "severely impacting"). Disabling Chrome GPU on DisplayLink makes it worse (12.47 vs 10.09 ms/s) because CPU rasterization competes with USB encoding for CPU time.</p>
+  </div>
+</div>
+
+<!-- Technical -->
+<div class="section">
+  <h2>五、技术背景 <span class="en">/ Technical Background</span></h2>
+  <div class="pipeline">
+<span class="c"># Built-in display 内置屏</span>
+MBP GPU → <span class="ok">[Internal display controller / 内置显示控制器]</span> → screen 屏幕
+          120Hz, zero latency, no CPU cost / 120Hz，零延迟，零CPU开销
+
+<span class="c"># Built-in HDMI / HBP Hub HDMI ← hardware video engine (same tier 同级别)</span>
+MBP GPU → <span class="ok">[Thunderbolt hardware video engine / 硬件视频引擎]</span> → HDMI → monitor 显示器
+          60Hz, stable, no CPU cost / 60Hz，稳定，不占CPU
+          HBP Hub = Thunderbolt → HDMI hardware bridge / 硬件桥接 ← same tier as built-in HDMI
+
+<span class="c"># DisplayLink ← root cause of jank / 问题根源</span>
+MBP GPU → frame capture / 截帧 → <span class="bad">[CPU/GPU software encode / 软编码]</span> → USB → decode → monitor
+          Every frame goes through software / 每帧走软件链路
+          Sensitive to CPU load &amp; USB bandwidth / 受CPU负载、USB带宽影响
+          Chrome's Viz compositor competes with software encoder for CPU / Chrome Viz 与软编码抢CPU
+          → worst-case conflict / 冲突最严重
+
+<span class="c"># Input device comparison / 输入设备对比 ← affects CV / latency metrics</span>
+Trackpad 触控板: <span class="ok">continuous analog signal / 连续模拟信号</span>, 53–111 events/s, with momentum / 有惯性
+Mouse wheel 外接鼠标: <span class="warn">discrete step signal / 离散步进信号</span>, 15–18 events/s, no momentum / 无惯性
+→ CV / latency NOT comparable between the two; Hitch / FPS BOTH valid
+→ CV / 延迟两组不可比，Hitch / FPS 两组均有效
+  </div>
+</div>
+
+<!-- Conclusions -->
+<div class="section">
+  <h2>六、结论与建议 <span class="en">/ Conclusions &amp; Recommendations</span></h2>
+
+  <p style="font-size:.875rem;font-weight:600;margin-bottom:10px;">接口方案优先级（帧交付质量）/ Connection Priority by Frame Delivery Quality：</p>
+  <div class="priority">
+    <div class="p-item" style="background:var(--green-bg);border-color:var(--green);color:var(--green);">✅ Built-in 内置屏<br><small>120Hz perfect / 完美</small></div>
+    <div class="p-arrow">&gt;</div>
+    <div class="p-item" style="background:var(--green-bg);border-color:var(--green);color:var(--green);">✅ Built-in HDMI 内置 HDMI<br><small>60Hz perfect / 完美</small></div>
+    <div class="p-arrow">&gt;</div>
+    <div class="p-item" style="background:var(--blue-bg);border-color:var(--blue);color:var(--blue);">✅ HBP Hub 2×HDMI<br><small>60Hz perfect / 完美 ★</small></div>
+    <div class="p-arrow">&gt;</div>
+    <div class="p-item" style="background:var(--yellow-bg);border-color:var(--yellow);color:var(--yellow);">⚠️ DisplayLink<br><small>Safari only / 仅限</small></div>
+    <div class="p-arrow">&gt;</div>
+    <div class="p-item" style="background:var(--red-bg);border-color:var(--red);color:var(--red);">❌ DisplayLink + Chrome<br><small>avoid / 避免</small></div>
+  </div>
+  <p style="font-size:.75rem;color:var(--muted);margin-bottom:18px;">★ 触控板视觉流畅度（CV）待补测 / Trackpad CV for HBP Hub pending re-test</p>
+
+  <div class="rec-grid">
+    <div class="rec-card">
+      <div class="icon">🖥️🖥️</div>
+      <h4>需要双 4K 扩展屏 / Dual 4K displays</h4>
+      <p>✅ <b>HBP Hub 双 HDMI</b>，帧交付完美，不限浏览器。触控板体验需打开盖子或接 Magic Trackpad 再验证。<br>Use HBP Hub dual HDMI — perfect frame delivery, browser-agnostic. Trackpad experience needs re-test with lid open or Magic Trackpad.</p>
+    </div>
+    <div class="rec-card">
+      <div class="icon">🖥️</div>
+      <h4>单 4K 扩展屏 / Single 4K display</h4>
+      <p>✅ <b>MBP 内置 HDMI</b>，最简可靠，零卡顿，触控板完整可用。<br>Use MBP's built-in HDMI — simplest, zero hitches, trackpad fully available.</p>
+    </div>
+    <div class="rec-card">
+      <div class="icon">🔗</div>
+      <h4>必须用 DisplayLink / Must use DisplayLink</h4>
+      <p>⚠️ 改用 <b>Safari</b>（Hitch 2.56 仍在 Apple smooth 区间；Chrome 10+ 已严重影响），Chrome GPU 保持开启。<br>Switch to Safari (hitch 2.56 within Apple's smooth; Chrome 10+ severely impacting); keep Chrome GPU enabled.</p>
+    </div>
+    <div class="rec-card">
+      <div class="icon">📋</div>
+      <h4>待补测 / Pending Re-test</h4>
+      <p>HBP Hub 双屏 + 触控板：打开盖子（3屏模式）或接 Magic Trackpad，重测 CV 和输入延迟获取可比数据。<br>Re-test HBP Hub with trackpad input (lid open = 3-display mode, or Magic Trackpad) for comparable CV data.</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Generated by ScrollMeter v1.4 &nbsp;·&nbsp; 2026-06-04 &nbsp;·&nbsp; MacBook Pro 14-inch M3 &nbsp;·&nbsp; 10 configurations<br>
+  v4：修正 ⑦ 延迟数据；Hitch 阈值改用 Apple Tech Talk 10855 原文；⑤ 评级拆解 Hitch / FPS<br>
+  v4: Fixed row ⑦ latency; thresholds aligned with Apple Tech Talk 10855; row ⑤ rating split into Hitch/FPS<br>
+  参考 / Reference: <a href="https://developer.apple.com/videos/play/tech-talks/10855/" target="_blank">Tech Talk 10855</a>
+  &nbsp;·&nbsp;
+  <a href="https://developer.apple.com/documentation/xcode/understanding-hitches-in-your-app" target="_blank">Understanding Hitches</a>
+</div>
+
+</div>
+</body>
+</html>

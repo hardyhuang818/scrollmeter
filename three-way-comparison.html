@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三档对比 · Safari vs Chrome (GPU on) vs Chrome (GPU off)</title>
+<style>
+:root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: #d2d2d7;
+
+    --safari: #0071e3;
+    --chrome-gpu: #27ae60;
+    --chrome-cpu: #e74c3c;
+    --js: #f39c12;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0; padding: 28px;
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+}
+h1 { margin: 0 0 4px; font-size: 22px; }
+.subtitle { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+
+.card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+/* ----- Controls ----- */
+.controls {
+    padding: 16px 20px; margin-bottom: 20px;
+    display: flex; gap: 28px; align-items: center; flex-wrap: wrap;
+}
+.controls > div { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.controls .label { color: var(--muted); }
+.controls input[type="range"] { width: 180px; }
+.controls .val { font-family: ui-monospace, SFMono-Regular, monospace; min-width: 50px; }
+button {
+    padding: 7px 14px; font-size: 13px;
+    background: #1d1d1f; color: white; border: none; border-radius: 6px;
+    cursor: pointer;
+}
+button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+
+/* ----- Three-column grid ----- */
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 1100px) { .grid-3 { grid-template-columns: 1fr; } }
+
+.col {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;
+}
+.col.safari      { border-top: 4px solid var(--safari); }
+.col.chrome-gpu  { border-top: 4px solid var(--chrome-gpu); }
+.col.chrome-cpu  { border-top: 4px solid var(--chrome-cpu); }
+
+.col-header { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.col-header h2 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.col-header .desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.verdict {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 10px; font-weight: 700; color: white; letter-spacing: .3px;
+    margin-top: 8px;
+}
+.verdict.good { background: var(--chrome-gpu); }
+.verdict.okay { background: var(--js); }
+.verdict.bad  { background: var(--chrome-cpu); }
+
+/* ----- Pipeline diagram ----- */
+.pipeline { padding: 14px 16px; background: #fafafa; border-bottom: 1px solid var(--border); }
+.pipeline-title {
+    font-size: 11px; color: var(--muted); margin-bottom: 8px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    text-transform: uppercase; letter-spacing: .5px;
+}
+.stage {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+    font-size: 12px;
+}
+.thread-tag {
+    font-size: 9px; padding: 2px 4px; border-radius: 3px;
+    color: white; font-weight: 700; width: 56px; text-align: center;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    flex-shrink: 0;
+}
+.tag-main { background: var(--chrome-cpu); }
+.tag-comp { background: var(--chrome-gpu); }
+.tag-sys  { background: var(--safari); }
+.tag-gpu  { background: #16a085; }
+.stage-text {
+    flex: 1; padding: 4px 8px; border-radius: 4px;
+    background: white; border: 1px solid var(--border);
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px;
+}
+.stage-text.highlight { background: #fff4e0; font-weight: 600; border-color: var(--js); }
+.arrow { color: var(--muted); text-align: center; font-size: 10px; margin: 1px 0 1px 64px; }
+
+/* ----- Scroll window ----- */
+.browser-frame { background: #f0f0f0; height: 240px; overflow: hidden; position: relative; }
+.scroll-content {
+    position: absolute; left: 0; top: 0; width: 100%;
+    will-change: transform;
+}
+.row {
+    height: 36px; padding: 0 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px;
+    border-bottom: 1px solid rgba(0,0,0,.04);
+}
+.row .pill {
+    background: rgba(0,0,0,.06); padding: 2px 7px; border-radius: 8px; font-size: 10px;
+}
+.freeze-overlay {
+    position: absolute; inset: 0; display: none;
+    background: rgba(231,76,60,.18); align-items: center; justify-content: center;
+    color: var(--chrome-cpu); font-weight: 600; font-size: 12px;
+    border: 2px dashed var(--chrome-cpu);
+}
+.freeze-overlay.show { display: flex; }
+.lag-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 6px;
+    background: var(--js); transform-origin: left;
+    transform: scaleX(0); transition: transform .1s;
+}
+
+/* ----- Stats ----- */
+.stats {
+    padding: 12px 16px; background: #fafafa; border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px;
+}
+.stats .label { color: var(--muted); font-size: 10px; }
+.stats .num { font-size: 14px; font-weight: 700; }
+.num.ok  { color: var(--chrome-gpu); }
+.num.mid { color: var(--js); }
+.num.bad { color: var(--chrome-cpu); }
+
+.sparkline {
+    padding: 8px 14px 12px; background: #fafafa;
+    border-top: 1px solid var(--border);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 10px; color: var(--muted);
+}
+.sparkline-track {
+    height: 28px; background: #eaeaea; border-radius: 3px;
+    position: relative; overflow: hidden; margin-top: 4px;
+}
+.spark-bar {
+    position: absolute; bottom: 0; width: 2px; background: var(--chrome-gpu);
+}
+.spark-bar.bad { background: var(--chrome-cpu); }
+.spark-bar.mid { background: var(--js); }
+.spark-line {
+    position: absolute; bottom: 8px; left: 0; right: 0; height: 1px;
+    background: rgba(0,0,0,.15); pointer-events: none;
+}
+
+/* ----- Bottom summary table ----- */
+.summary-card { padding: 18px 20px; margin-top: 20px; }
+.summary-card h2 { margin: 0 0 12px; font-size: 16px; }
+table.compare {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+}
+table.compare th, table.compare td {
+    padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);
+}
+table.compare th { background: #fafafa; font-weight: 600; }
+table.compare td.metric { color: var(--muted); }
+table.compare .good { color: var(--chrome-gpu); font-weight: 600; }
+table.compare .mid  { color: var(--js); font-weight: 600; }
+table.compare .bad  { color: var(--chrome-cpu); font-weight: 600; }
+
+.note {
+    margin-top: 14px; padding: 12px 16px;
+    background: #fff8e1; border-left: 3px solid #fbc02d;
+    border-radius: 4px; font-size: 13px; color: #6d4c00;
+}
+</style>
+</head>
+<body>
+
+<h1>三档浏览器路径对比 · Three-way Scroll Comparison</h1>
+<p class="subtitle">
+同一台 Mac · 同一段网页 · 同一个 CPU 压力 — 三种渲染路径的差异<br>
+Same Mac · same page · same CPU load — three rendering paths compared
+</p>
+
+<!-- Controls -->
+<div class="card controls">
+    <div>
+        <span class="label">🔥 CPU 压力 / load:</span>
+        <input type="range" id="cpu-load" min="0" max="90" value="40">
+        <span class="val" id="cpu-load-val">40%</span>
+    </div>
+    <div>
+        <span class="label">⏩ 速度 / speed:</span>
+        <input type="range" id="speed" min="50" max="500" value="220">
+        <span class="val" id="speed-val">220</span>
+    </div>
+    <button id="btn-reset" class="ghost">↺ 重置 / Reset</button>
+    <button id="btn-toggle" class="ghost">⏸ 暂停 / Pause</button>
+</div>
+
+<!-- Three columns -->
+<div class="grid-3">
+
+    <!-- Safari -->
+    <div class="col safari">
+        <div class="col-header">
+            <h2>🧭 Safari (WebKit)</h2>
+            <div class="desc">macOS 原生路径 · 系统 Core Animation 全程托管</div>
+            <span class="verdict good" id="verdict-safari">🟢 LOCKED · 上限</span>
+        </div>
+        <div class="pipeline">
+            <div class="pipeline-title">渲染路径 / Pipeline</div>
+            <div class="stage"><span class="thread-tag tag-main">Main</span><span class="stage-text">JS / Layout / Paint</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-sys">CA</span><span class="stage-text">Core Animation (system)</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-sys">WS</span><span class="stage-text">WindowServer + Metal</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-gpu">GPU</span><span class="stage-text highlight">📜 滚动 / Scroll</span></div>
+        </div>
+        <div class="browser-frame" id="browser-safari">
+            <div class="scroll-content" id="content-safari"></div>
+        </div>
+        <div class="stats" id="stats-safari"></div>
+        <div class="sparkline">
+            <span>帧间隔分布 (越平坦越好)</span>
+            <div class="sparkline-track" id="spark-safari"><div class="spark-line"></div></div>
+        </div>
+    </div>
+
+    <!-- Chrome w/ GPU -->
+    <div class="col chrome-gpu">
+        <div class="col-header">
+            <h2>🌐 Chrome — GPU 加速开启</h2>
+            <div class="desc">独立合成器线程 · 跨进程 IPC 到 GPU 进程</div>
+            <span class="verdict okay" id="verdict-chrome-gpu">🟡 SMOOTH · 接近上限</span>
+        </div>
+        <div class="pipeline">
+            <div class="pipeline-title">渲染路径 / Pipeline</div>
+            <div class="stage"><span class="thread-tag tag-main">Main</span><span class="stage-text">JS / Layout / Paint (record)</span></div>
+            <div class="arrow">↓ IPC</div>
+            <div class="stage"><span class="thread-tag tag-gpu">GPU-P</span><span class="stage-text">Raster (Skia GPU / Metal)</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-comp">Comp</span><span class="stage-text">Compositor thread</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-comp">Comp</span><span class="stage-text highlight">📜 滚动 / Scroll</span></div>
+        </div>
+        <div class="browser-frame" id="browser-chrome-gpu">
+            <div class="scroll-content" id="content-chrome-gpu"></div>
+            <div class="lag-overlay" id="lag-chrome-gpu"></div>
+        </div>
+        <div class="stats" id="stats-chrome-gpu"></div>
+        <div class="sparkline">
+            <span>帧间隔分布</span>
+            <div class="sparkline-track" id="spark-chrome-gpu"><div class="spark-line"></div></div>
+        </div>
+    </div>
+
+    <!-- Chrome w/o GPU -->
+    <div class="col chrome-cpu">
+        <div class="col-header">
+            <h2>🐌 Chrome — GPU 加速关闭</h2>
+            <div class="desc">全程主线程 · Skia 软件栅格器 · CPU 干所有活</div>
+            <span class="verdict bad" id="verdict-chrome-cpu">🔴 JANK · 卡</span>
+        </div>
+        <div class="pipeline">
+            <div class="pipeline-title">渲染路径 / Pipeline</div>
+            <div class="stage"><span class="thread-tag tag-main">Main</span><span class="stage-text">JS / Style / Layout</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-main">Main</span><span class="stage-text">Paint + Raster (Skia CPU)</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-main">Main</span><span class="stage-text">Composite</span></div>
+            <div class="arrow">↓</div>
+            <div class="stage"><span class="thread-tag tag-main">Main</span><span class="stage-text highlight">📜 滚动 / Scroll</span></div>
+        </div>
+        <div class="browser-frame" id="browser-chrome-cpu">
+            <div class="scroll-content" id="content-chrome-cpu"></div>
+            <div class="freeze-overlay" id="freeze-chrome-cpu">⏸ Main thread blocked</div>
+        </div>
+        <div class="stats" id="stats-chrome-cpu"></div>
+        <div class="sparkline">
+            <span>帧间隔分布</span>
+            <div class="sparkline-track" id="spark-chrome-cpu"><div class="spark-line"></div></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Summary table -->
+<div class="card summary-card">
+    <h2>归纳 / Summary</h2>
+    <table class="compare">
+        <thead>
+            <tr>
+                <th>对比维度 / Aspect</th>
+                <th>Safari</th>
+                <th>Chrome (GPU on)</th>
+                <th>Chrome (GPU off)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="metric">滚动跑在哪 / Scroll runs on</td>
+                <td class="good">系统合成器 (CA)</td>
+                <td class="good">合成器线程</td>
+                <td class="bad">主线程</td>
+            </tr>
+            <tr>
+                <td class="metric">JS 占满主线程时 / When JS blocks main</td>
+                <td class="good">完全不影响</td>
+                <td class="mid">滚动继续；新内容延迟出现</td>
+                <td class="bad">滚动彻底停滞</td>
+            </tr>
+            <tr>
+                <td class="metric">跨进程通信开销 / IPC overhead</td>
+                <td class="good">无（同进程 CA）</td>
+                <td class="mid">需要</td>
+                <td class="good">不需要（但 CPU 满载）</td>
+            </tr>
+            <tr>
+                <td class="metric">ProMotion 120Hz</td>
+                <td class="good">原生满速</td>
+                <td class="mid">支持但偶有掉档</td>
+                <td class="bad">基本只能 60Hz</td>
+            </tr>
+            <tr>
+                <td class="metric">用户能关吗 / User toggle?</td>
+                <td class="good">无开关，强制开启</td>
+                <td class="mid">有总开关</td>
+                <td class="bad">同上</td>
+            </tr>
+            <tr>
+                <td class="metric">scrollmeter 预期 Hitch ratio</td>
+                <td class="good">&lt; 1 ms/s</td>
+                <td class="mid">1–5 ms/s</td>
+                <td class="bad">15–50 ms/s</td>
+            </tr>
+            <tr>
+                <td class="metric">类似架构的应用 / Similar apps</td>
+                <td class="good">Finder / Notes / Mail (原生 AppKit)</td>
+                <td class="mid">Edge / Brave (其它 Chromium 浏览器)</td>
+                <td class="bad">VS Code / Slack / Discord (Electron)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="note">
+        <strong>怎么读 / How to read:</strong> 把上面 🔥 CPU 压力滑到 0%，三栏看起来差不多；
+        滑到 30%，最右栏开始掉帧；滑到 60%+，最右栏几乎停滞、中间偶尔卡一下、左边纹丝不动。
+        这就是 macOS 上"为什么 Safari 比 Chrome 顺、Chrome 比 Electron 顺"的本质。<br>
+        Drag the CPU load slider: at 0% all three look similar; at 30% the rightmost starts dropping
+        frames; at 60%+ the rightmost is nearly stuck, middle stutters occasionally, leftmost stays
+        rock solid. This is the architectural reason Safari &gt; Chrome &gt; Electron on macOS.
+    </div>
+</div>
+
+<script>
+// ---------- Build scrollable content (shared across all three) ----------
+function fillContent(el) {
+    const html = [];
+    for (let i = 0; i < 300; i++) {
+        const hue = (i * 16) % 360;
+        html.push(
+            `<div class="row" style="background:hsl(${hue},45%,93%)">` +
+            `<span>Row ${i.toString().padStart(3,'0')} — long scrollable content</span>` +
+            `<span class="pill">#${(0xa00000 + i*0x1234).toString(16).slice(-6)}</span>` +
+            `</div>`
+        );
+    }
+    el.innerHTML = html.join('');
+}
+['safari','chrome-gpu','chrome-cpu'].forEach(id =>
+    fillContent(document.getElementById('content-'+id)));
+
+// ---------- State ----------
+const ROW_H = 36, ROW_N = 300, VIEW_H = 240;
+const MAX_POS = ROW_N * ROW_H - VIEW_H;
+const CYCLE_MS = 100;
+const SPARK_N = 80;
+
+const state = {
+    speed: 220,
+    cpuLoad: 0.40,
+    paused: false,
+    lastTime: performance.now(),
+    startTime: performance.now(),
+    cycleStart: performance.now(),
+    pos: { safari: 0, 'chrome-gpu': 0, 'chrome-cpu': 0 },
+    frames: { safari: 0, 'chrome-gpu': 0, 'chrome-cpu': 0 },
+    missed: { safari: 0, 'chrome-gpu': 0, 'chrome-cpu': 0 },
+    lastFrameAt: { safari: 0, 'chrome-gpu': 0, 'chrome-cpu': 0 },
+    intervals: { safari: [], 'chrome-gpu': [], 'chrome-cpu': [] },
+};
+
+// ---------- DOM refs ----------
+const $ = id => document.getElementById(id);
+
+// ---------- Controls ----------
+$('cpu-load').addEventListener('input', e => {
+    state.cpuLoad = +e.target.value / 100;
+    $('cpu-load-val').textContent = e.target.value + '%';
+});
+$('speed').addEventListener('input', e => {
+    state.speed = +e.target.value;
+    $('speed-val').textContent = e.target.value;
+});
+$('btn-reset').addEventListener('click', () => {
+    for (const k of ['safari','chrome-gpu','chrome-cpu']) {
+        state.pos[k] = 0;
+        state.frames[k] = 0;
+        state.missed[k] = 0;
+        state.intervals[k] = [];
+    }
+    state.startTime = performance.now();
+});
+$('btn-toggle').addEventListener('click', e => {
+    state.paused = !state.paused;
+    e.target.textContent = state.paused ? '▶ 继续 / Resume' : '⏸ 暂停 / Pause';
+    if (!state.paused) state.lastTime = performance.now();
+});
+
+// ---------- Per-mode tick logic ----------
+// Returns { advance: bool, lagAmount: 0..1 }
+function tickMode(mode, mainBlocked, hardLoad) {
+    if (mode === 'safari') {
+        // System compositor — never affected by web JS.
+        return { advance: true, lag: 0 };
+    }
+    if (mode === 'chrome-gpu') {
+        // Compositor thread keeps scrolling. But raster/IPC under heavy load
+        // produces visible "tile lag" — a colored stripe at the bottom and
+        // occasional micro-stutter.
+        const microHitch = mainBlocked && Math.random() < 0.08;
+        const lag = mainBlocked ? hardLoad : 0;
+        return { advance: !microHitch, lag };
+    }
+    if (mode === 'chrome-cpu') {
+        // Scroll is on the main thread. Blocked = stuck.
+        return { advance: !mainBlocked, lag: mainBlocked ? 1 : 0 };
+    }
+}
+
+// ---------- Render helpers ----------
+function setTransform(mode, y) {
+    document.getElementById('content-'+mode).style.transform = `translateY(${-y}px)`;
+}
+function renderStats(mode, secs) {
+    const f = state.frames[mode];
+    const m = state.missed[mode];
+    const fps = (f / secs).toFixed(0);
+    const missedRatio = f + m === 0 ? 0 : (m/(f+m)*100);
+    const tier = missedRatio < 2 ? 'ok' : missedRatio < 15 ? 'mid' : 'bad';
+    const fpsTier = fps >= 55 ? 'ok' : fps >= 30 ? 'mid' : 'bad';
+    $('stats-'+mode).innerHTML = `
+        <div><div class="label">已绘帧 Rendered</div><div class="num ${fpsTier}">${f}</div></div>
+        <div><div class="label">错过帧 Missed</div><div class="num ${tier}">${m}</div></div>
+        <div><div class="label">滚动位置 Pos Y</div><div class="num">${state.pos[mode].toFixed(0)} px</div></div>
+        <div><div class="label">等效 FPS</div><div class="num ${fpsTier}">${fps}</div></div>
+    `;
+}
+function renderSparkline(mode) {
+    const track = $('spark-'+mode);
+    const ints = state.intervals[mode].slice(-SPARK_N);
+    if (ints.length === 0) { track.innerHTML = '<div class="spark-line"></div>'; return; }
+    const expected = 1000/60;
+    const maxH = 28;
+    const w = track.clientWidth;
+    const slotW = w / SPARK_N;
+    const html = ['<div class="spark-line"></div>'];
+    ints.forEach((v, i) => {
+        const h = Math.min(maxH, (v / (expected*4)) * maxH);
+        const cls = v < expected*1.3 ? '' : v < expected*2.5 ? 'mid' : 'bad';
+        const left = i * slotW;
+        html.push(`<div class="spark-bar ${cls}" style="left:${left}px;height:${h}px"></div>`);
+    });
+    track.innerHTML = html.join('');
+}
+function updateVerdict(mode) {
+    const recent = state.intervals[mode].slice(-30);
+    if (recent.length < 5) return;
+    const exp = 1000/60;
+    const hitches = recent.filter(v => v > exp*1.5).length;
+    const ratio = hitches / recent.length;
+    const el = $('verdict-'+mode);
+    if (mode === 'safari') return; // always locked
+    if (ratio < 0.05) {
+        el.className = 'verdict good';
+        el.textContent = '🟢 SMOOTH · 顺滑';
+    } else if (ratio < 0.25) {
+        el.className = 'verdict okay';
+        el.textContent = '🟡 OKAY · 还行';
+    } else {
+        el.className = 'verdict bad';
+        el.textContent = '🔴 JANKY · 卡';
+    }
+}
+
+// ---------- Main loop ----------
+function loop(now) {
+    if (state.paused) { requestAnimationFrame(loop); return; }
+
+    const dt = Math.min(0.1, (now - state.lastTime) / 1000);
+    state.lastTime = now;
+    const dx = state.speed * dt;
+
+    // CPU duty cycle
+    const phase = (now - state.cycleStart) % CYCLE_MS;
+    const mainBlocked = phase < (state.cpuLoad * CYCLE_MS);
+    const hardLoad = state.cpuLoad;
+
+    for (const mode of ['safari','chrome-gpu','chrome-cpu']) {
+        const { advance, lag } = tickMode(mode, mainBlocked, hardLoad);
+
+        if (advance) {
+            state.pos[mode] = (state.pos[mode] + dx) % MAX_POS;
+            setTransform(mode, state.pos[mode]);
+            state.frames[mode]++;
+
+            if (state.lastFrameAt[mode] > 0) {
+                state.intervals[mode].push(now - state.lastFrameAt[mode]);
+                if (state.intervals[mode].length > 200) state.intervals[mode].shift();
+            }
+            state.lastFrameAt[mode] = now;
+        } else {
+            state.missed[mode]++;
+        }
+
+        // Lag overlays
+        if (mode === 'chrome-gpu') {
+            const el = $('lag-chrome-gpu');
+            if (el) el.style.transform = `scaleX(${lag.toFixed(2)})`;
+        }
+        if (mode === 'chrome-cpu') {
+            const el = $('freeze-chrome-cpu');
+            if (!advance) el.classList.add('show'); else el.classList.remove('show');
+        }
+    }
+
+    const secs = (now - state.startTime) / 1000;
+    for (const mode of ['safari','chrome-gpu','chrome-cpu']) {
+        renderStats(mode, secs);
+        renderSparkline(mode);
+        updateVerdict(mode);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
