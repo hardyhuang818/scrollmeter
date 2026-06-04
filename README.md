@@ -18,7 +18,7 @@ Self-contained tool that quantifies touchpad scroll smoothness on macOS.
 | `three-way-comparison.html` | Side-by-side: Safari vs Chrome (GPU on) vs Chrome (GPU off) |
 | **Analysis** | |
 | `scrollmeter-analysis-20260604-v4.md` / `.html` | Latest analysis: 10 configurations across 4 connection types |
-| `20260604 scrollmeter log/` | Raw measurement reports from a MacBook Pro M3 + HP PG27 4K |
+| `20260604 scrollmeter log/` | Raw measurement reports from a MacBook Pro M3 + ASUS PG27 4K |
 
 ---
 

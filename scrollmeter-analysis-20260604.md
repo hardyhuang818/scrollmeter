@@ -2,9 +2,9 @@
 # 触控板滚动流畅度分析报告 — 2026-06-04
 
 **设备 / Device:** MacBook Pro 14-inch M3  
-**外接显示器 / External monitor:** HP PG27 4K @ 60 Hz  
+**外接显示器 / External monitor:** ASUS PG27 4K @ 60 Hz  
 **工具 / Tool:** ScrollMeter v1.4  
-**测试应用 / Test app:** Chrome、Safari（在 HP PG27 上滚动长页面 / scrolling long pages on HP PG27）
+**测试应用 / Test app:** Chrome、Safari（在 ASUS PG27 上滚动长页面 / scrolling long pages on ASUS PG27）
 
 ---
 
@@ -14,11 +14,11 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | ① | MBP 本屏 Internal | 120 Hz | 内置 Built-in | Chrome | ON  | **120.0** | **0.00 ms/s** | 0.64 | 4.42 ms | ✅ 流畅 Smooth |
 | ② | MBP 本屏 Internal | 120 Hz | 内置 Built-in | Chrome | OFF | **120.0** | **0.00 ms/s** | 0.49 | 4.49 ms | ✅ 流畅 Smooth |
-| ③ | HP PG27 4K60 | 60 Hz | **内置 HDMI Built-in HDMI** | Chrome | OFF | **60.0** | **0.00 ms/s** | 0.61 | 7.92 ms | ✅ 流畅 Smooth |
-| ④ | HP PG27 4K60 | 60 Hz | **内置 HDMI Built-in HDMI** | Chrome | ON  | **60.0** | **0.00 ms/s** | 0.66 | 6.17 ms | ✅ 流畅 Smooth |
-| ⑤ | HP PG27 4K60 | 60 Hz | **DisplayLink** | Safari | —  | 56.9 | 2.56 ms/s | 0.63 | 8.08 ms | ⚠️ 临界 Borderline |
-| ⑥ | HP PG27 4K60 | 60 Hz | **DisplayLink** | Chrome | ON  | 53.9 | **10.09 ms/s** | 0.84 | 9.15 ms | ❌ 卡顿 Jank |
-| ⑦ | HP PG27 4K60 | 60 Hz | **DisplayLink** | Chrome | OFF | 59.0 | **12.47 ms/s** | 0.74 | 9.15 ms | ❌ 卡顿 Jank |
+| ③ | ASUS PG27 4K60 | 60 Hz | **内置 HDMI Built-in HDMI** | Chrome | OFF | **60.0** | **0.00 ms/s** | 0.61 | 7.92 ms | ✅ 流畅 Smooth |
+| ④ | ASUS PG27 4K60 | 60 Hz | **内置 HDMI Built-in HDMI** | Chrome | ON  | **60.0** | **0.00 ms/s** | 0.66 | 6.17 ms | ✅ 流畅 Smooth |
+| ⑤ | ASUS PG27 4K60 | 60 Hz | **DisplayLink** | Safari | —  | 56.9 | 2.56 ms/s | 0.63 | 8.08 ms | ⚠️ 临界 Borderline |
+| ⑥ | ASUS PG27 4K60 | 60 Hz | **DisplayLink** | Chrome | ON  | 53.9 | **10.09 ms/s** | 0.84 | 9.15 ms | ❌ 卡顿 Jank |
+| ⑦ | ASUS PG27 4K60 | 60 Hz | **DisplayLink** | Chrome | OFF | 59.0 | **12.47 ms/s** | 0.74 | 9.15 ms | ❌ 卡顿 Jank |
 
 > **指标说明 / Metric reference**  
 > - **Hitch ratio**：每秒卡顿毫秒数，苹果标准：< 5 流畅 / 5–10 临界 / > 10 肉眼可感知  

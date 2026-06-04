@@ -2,7 +2,7 @@
 # 触控板滚动流畅度分析报告 — 2026-06-04（第三版）
 
 **设备 / Device:** MacBook Pro 14-inch M3  
-**外接显示器 / External monitor:** HP PG27 4K @ 60 Hz  
+**外接显示器 / External monitor:** ASUS PG27 4K @ 60 Hz  
 **Hub / 扩展坞:** HBP USB-C Hub（双 HDMI 4K 输出 / Dual HDMI 4K output）  
 **工具 / Tool:** ScrollMeter v1.4  
 **测试应用 / Test apps:** Chrome、Safari
@@ -38,11 +38,11 @@
 |---|---|---|---|---|---|---|---|---|---|
 | ① | 内置屏 120Hz | 触控板 Trackpad | Chrome | ON  | **120.0** | **0.00** ms/s | 0.64 | 4.42 ms | ✅ 流畅 |
 | ② | 内置屏 120Hz | 触控板 Trackpad | Chrome | OFF | **120.0** | **0.00** ms/s | 0.49 | 4.49 ms | ✅ 流畅 |
-| ③ | 内置HDMI → HP PG27 | 触控板 Trackpad | Chrome | OFF | **60.0** | **0.00** ms/s | 0.61 | 7.92 ms | ✅ 流畅 |
-| ④ | 内置HDMI → HP PG27 | 触控板 Trackpad | Chrome | ON  | **60.0** | **0.00** ms/s | 0.66 | 6.17 ms | ✅ 流畅 |
-| ⑤ | DisplayLink → HP PG27 | 触控板 Trackpad | Safari | — | 56.9 | 2.56 ms/s | 0.63 | 8.08 ms | ⚠️ 临界 |
-| ⑥ | DisplayLink → HP PG27 | 触控板 Trackpad | Chrome | ON  | 53.9 | **10.09** ms/s | 0.84 | 9.15 ms | ❌ 卡顿 |
-| ⑦ | DisplayLink → HP PG27 | 触控板 Trackpad | Chrome | OFF | 59.0 | **12.47** ms/s | 0.74 | 9.15 ms | ❌ 卡顿 |
+| ③ | 内置HDMI → ASUS PG27 | 触控板 Trackpad | Chrome | OFF | **60.0** | **0.00** ms/s | 0.61 | 7.92 ms | ✅ 流畅 |
+| ④ | 内置HDMI → ASUS PG27 | 触控板 Trackpad | Chrome | ON  | **60.0** | **0.00** ms/s | 0.66 | 6.17 ms | ✅ 流畅 |
+| ⑤ | DisplayLink → ASUS PG27 | 触控板 Trackpad | Safari | — | 56.9 | 2.56 ms/s | 0.63 | 8.08 ms | ⚠️ 临界 |
+| ⑥ | DisplayLink → ASUS PG27 | 触控板 Trackpad | Chrome | ON  | 53.9 | **10.09** ms/s | 0.84 | 9.15 ms | ❌ 卡顿 |
+| ⑦ | DisplayLink → ASUS PG27 | 触控板 Trackpad | Chrome | OFF | 59.0 | **12.47** ms/s | 0.74 | 9.15 ms | ❌ 卡顿 |
 | ⑧ | **HBP Hub 双HDMI** ★ | **外接鼠标 Mouse** | Chrome | ON  | **60.0** | **0.00** ms/s | 0.78 ※ | 7.77 ms ※ | ✅ 帧流畅 |
 | ⑨ | **HBP Hub 双HDMI** ★ | **外接鼠标 Mouse** | Chrome | OFF | **60.0** | **0.00** ms/s | 0.81 ※ | 8.84 ms ※ | ✅ 帧流畅 |
 | ⑩ | **HBP Hub 双HDMI** ★ | **外接鼠标 Mouse** | Safari | —   | **60.0** | **0.00** ms/s | 0.88 ※ | 7.63 ms ※ | ✅ 帧流畅 |
