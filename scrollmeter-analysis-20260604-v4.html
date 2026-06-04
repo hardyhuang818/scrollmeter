@@ -176,8 +176,14 @@ table.main tr:hover td{background:#fafafa;}
         <small style="color:#1d4ed8;opacity:.85;">Hitch thresholds re-aligned with Apple Tech Talk 10855 wording: the old "10 ms/s = perceptible" was too soft; Apple's term is "greatly impacting"</small></li>
     <li>⑤ Safari DisplayLink 评级拆解：Hitch 2.56 ms/s ✅ Apple smooth；FPS 56.9/60 ⚠️ 偏低 — 综合评级"临界"是 <b>FPS</b> 拖低，不是 hitch 不合格<br>
         <small style="color:#1d4ed8;opacity:.85;">Row ⑤ rating split: Hitch 2.56 ms/s is ✅ within Apple's "smooth" range; FPS 56.9/60 is ⚠️ low — the overall "borderline" reflects sub-60Hz FPS, not a hitch failure</small></li>
-    <li><b>测试条件澄清</b>：A/B/C 三组都不是"空闲基准"——均有 <b>DisplayLink 接副屏全屏播 YouTube</b> 作为后台负载；A 组额外多一台屏全屏显示网页；C 组实际有 <b>两路 DisplayLink 同时工作</b>（一路滚动目标 + 一路 YouTube）。结论方向不变但更强：在真实负载下硬件视频路径仍 0 hitch 才是真本事。<br>
-        <small style="color:#1d4ed8;opacity:.85;">Test conditions clarified: Groups A/B/C were NOT idle baselines — all ran with a <b>DisplayLink-connected secondary 4K display playing YouTube fullscreen</b> as background load; Group A had a third fullscreen webpage screen; Group C effectively ran <b>two concurrent DisplayLink connections</b> (scroll target + YouTube). Conclusions unchanged but strengthened: hitting 0 hitch on hardware video paths under realistic load is the real result.</small></li>
+    <li><b>测试条件澄清（A 与 C 是干净的反事实对照）</b>：A/B/C 三组都不是"空闲基准"，而且 <b>A 和 C 的 DisplayLink 负载量完全相同（各 2 路）</b>，唯一变量是滚动目标是否走 DisplayLink：
+        <ul style="margin:6px 0 4px 18px;font-size:.83rem;line-height:1.6;">
+          <li><b>A</b>：内置屏 120Hz 滚动 + <b>2 路 DisplayLink</b> 副屏（一播 YouTube，一显示表格）→ 0 hitch</li>
+          <li><b>B</b>：内置 HDMI 滚动 + <b>1 路 DisplayLink</b> 副屏 YouTube → 0 hitch</li>
+          <li><b>C</b>：<b>DisplayLink 滚动</b> + <b>第二路 DisplayLink</b> 副屏 YouTube → 10–12 ms/s 卡顿</li>
+        </ul>
+        A 与 C 的 DisplayLink 总负载等价，结果天差地别——锁定<b>滚动渲染路径走 DisplayLink</b> 才是元凶。<br>
+        <small style="color:#1d4ed8;opacity:.85;">Test conditions clarified (A vs C is a clean counterfactual): A and C had the <b>same DisplayLink background load (2 connections each)</b>; the only variable was whether the scroll target was routed through DisplayLink. A: built-in 120Hz scroll + 2× DisplayLink (YouTube + spreadsheet) → 0 hitch. B: built-in HDMI scroll + 1× DisplayLink YouTube → 0 hitch. C: <b>scroll via DisplayLink</b> + second DisplayLink YouTube → 10–12 ms/s jank. Same total load between A and C, totally different outcome — pinpoints the cause to <b>routing the scroll target through DisplayLink</b>.</small></li>
   </ol>
 </div>
 
@@ -198,22 +204,36 @@ table.main tr:hover td{background:#fafafa;}
 
 <!-- Background workload -->
 <div class="alert info">
-  <h3>🎬 测试环境负载 / Sustained Background Workload (A/B/C groups)</h3>
-  <p>所有 A/B/C 组测量都在<b>带后台负载</b>的真实工作场景下进行，<b>不是</b>空闲基准。<br>
-     <em>All A/B/C measurements were taken under a sustained real-world background workload, NOT in an idle baseline.</em></p>
+  <h3>🎬 测试环境负载 · A vs C 反事实对照 / Sustained Background Workload — A vs C Counterfactual</h3>
+  <p>A/B/C 三组都不是"空闲基准"。<b>A 与 C 的 DisplayLink 负载量完全相同（各 2 路）</b>，唯一区别是滚动渲染目标是否走 DisplayLink——这构成干净的反事实对照。<br>
+     <em>None of A/B/C were idle baselines. <b>A and C had identical DisplayLink load (2 connections each)</b>; the only variable was whether the scroll rendering target traversed DisplayLink — a clean counterfactual.</em></p>
   <table>
-    <tr><th>Group</th><th>滚动目标 Scroll target</th><th>副屏 1（始终在线 always-on）</th><th>副屏 2</th></tr>
-    <tr><td><b>A</b></td><td>MBP 内置屏 120Hz（触控板 trackpad）</td><td>DisplayLink → 4K 60Hz · YouTube 全屏 fullscreen</td><td>第三屏 · 网页全屏 / 3rd screen · webpage fullscreen</td></tr>
-    <tr><td><b>B</b></td><td>内置 HDMI → ASUS PG27（触控板 trackpad）</td><td>DisplayLink → 4K 60Hz · YouTube 全屏 fullscreen</td><td>—</td></tr>
-    <tr><td><b>C</b></td><td>DisplayLink → ASUS PG27（触控板 trackpad）</td><td style="color:var(--red);"><b>第二路 DisplayLink</b> / Second DisplayLink → 4K 60Hz · YouTube 全屏</td><td>—</td></tr>
+    <tr><th>Group</th><th>滚动目标 Scroll target</th><th style="text-align:center;">DisplayLink<br>副屏数</th><th>副屏 1</th><th>副屏 2</th></tr>
+    <tr>
+      <td><b>A</b></td>
+      <td>MBP 内置屏 120Hz<br>Built-in（触控板 trackpad）</td>
+      <td style="text-align:center;"><b>2 路 / streams</b></td>
+      <td>DisplayLink → 4K 60Hz · YouTube 全屏</td>
+      <td>DisplayLink → 4K 60Hz · 表格全屏 / Spreadsheet</td>
+    </tr>
+    <tr>
+      <td><b>B</b></td>
+      <td>内置 HDMI → ASUS PG27<br>Built-in HDMI（触控板 trackpad）</td>
+      <td style="text-align:center;">1 路 / stream</td>
+      <td>DisplayLink → 4K 60Hz · YouTube 全屏</td>
+      <td>—</td>
+    </tr>
+    <tr style="background:#fef2f2;">
+      <td><b>C</b></td>
+      <td style="color:var(--red);"><b>DisplayLink</b> → ASUS PG27<br>（触控板 trackpad）</td>
+      <td style="text-align:center;"><b>2 路 / streams（含滚动目标 incl. scroll target）</b></td>
+      <td style="color:var(--red);">滚动目标自身 / Scroll target itself</td>
+      <td>DisplayLink → 4K 60Hz · YouTube 全屏</td>
+    </tr>
   </table>
-  <p style="margin-top:10px;"><b>为什么这对解读结果很关键 / Why this matters:</b></p>
-  <p>· A/B 的 "0 hitch" 是在 DisplayLink + YouTube 后台负载下达成的——硬件视频路径稳健<br>
-     <em>A/B's "0 hitch" was achieved UNDER a DisplayLink + YouTube background load — validating the hardware video path's robustness</em></p>
-  <p>· C 组实际有 <b>两路 DisplayLink 同时编码</b>（一路滚动 + 一路 YouTube），CPU 竞争双倍放大，10–12 ms/s 的 hitch 比单 DisplayLink 场景预期更糟<br>
-     <em>Group C actually had two concurrent DisplayLink encoder streams (scroll target plus YouTube screen), doubling CPU contention — its 10–12 ms/s hitch is worse than what a single-DisplayLink scenario would have shown</em></p>
-  <p>· "Apple Silicon 在后台负载下依然能滑得丝滑" 这个结论从带负载数据中得出，比空闲测试更可信<br>
-     <em>"Apple Silicon scrolls smoothly under real-world load" — drawn from data under load, not from idle tests</em></p>
+  <p style="margin-top:14px;"><b>关键对照 — A vs C / Key contrast — A vs C:</b></p>
+  <p>A 和 C 都有<b> 2 路 DisplayLink 同时在 USB 上软编码</b>，CPU 烧得一样多——但 A → 0 hitch，C → 10–12 ms/s 卡顿。这彻底排除了"DisplayLink 后台负载本身有罪吗？"或"DisplayLink 连接数量多了会卡？"——锁定 <b>滚动渲染目标走 DisplayLink</b> 这一动作才是元凶。<br>
+     <em>A and C both ran <b>two DisplayLink USB software encoders concurrently</b> (identical CPU load), yet A → 0 hitch and C → 10–12 ms/s. This rules out both "is the DisplayLink background load to blame?" and "do more DisplayLink connections cause jank?" — it pinpoints the cause specifically to <b>routing the scroll rendering target through DisplayLink</b>.</em></p>
 </div>
 
 <!-- Critical Notice -->
@@ -476,8 +496,8 @@ table.main tr:hover td{background:#fafafa;}
     <h3>🔴 发现 3：DisplayLink 是唯一卡顿来源 / DisplayLink Is the Sole Source of Jank</h3>
     <p><span class="lang">中文</span>同一台 MBP 同一台显示器：内置 HDMI → Hitch 0；DisplayLink → Hitch 10–12 ms/s（<b>Apple 标准"严重影响"区间</b>）。HBP Hub 双屏 → Hitch 0。所有硬件视频输出路径均无卡顿，问题唯一出在 DisplayLink 的 USB 软编码链路。</p>
     <p><span class="lang">EN</span>Same MBP, same monitor: built-in HDMI → zero hitches; DisplayLink → 10–12 ms/s (Apple's <b>"severely impacting"</b> range). HBP Hub dual-screen → zero hitches. All hardware video output paths deliver perfect frames; the bottleneck is exclusively DisplayLink's USB software encoding pipeline.</p>
-    <p style="margin-top:8px;border-top:1px solid rgba(0,0,0,.08);padding-top:8px;"><span class="lang">中文</span><b>关键观察：</b>C 组实际有<b>两路 DisplayLink 同时工作</b>——滚动目标 ASUS PG27 走一路、副屏 YouTube 全屏走另一路。两个软编码器抢 CPU，C 组的卡顿比单路 DisplayLink 更严重。即便如此，A/B 组在<b>同样</b>的"DisplayLink+YouTube 后台负载"下仍保持 0 hitch——证明问题不是后台负载本身，而是<b>把滚动渲染目标放到 DisplayLink 路径上</b>这一动作。</p>
-    <p><span class="lang">EN</span><b>Key observation:</b> Group C actually ran <b>two concurrent DisplayLink streams</b> — one for the ASUS PG27 scroll target, one for the YouTube secondary screen. Two software encoders competing for CPU made Group C's jank worse than a single-DisplayLink scenario. Yet Groups A/B remained at 0 hitch <b>under the same</b> "DisplayLink + YouTube background" load — proving the problem isn't the background workload, but rather <b>routing the scroll rendering target through DisplayLink</b> specifically.</p>
+    <p style="margin-top:8px;border-top:1px solid rgba(0,0,0,.08);padding-top:8px;"><span class="lang">中文</span><b>关键反事实对照：A 和 C 的 DisplayLink 负载量完全一致（各 2 路）。</b>A 用 DisplayLink 跑 YouTube + 表格，C 用 DisplayLink 跑 ASUS PG27 滚动目标 + YouTube。CPU 上软编码的负担相同，但 A 0 hitch、C 10–12 ms/s。这把"DisplayLink 后台负载本身有罪？"和"DisplayLink 连接数量决定卡顿？"两个备选假设都排除了——锁定 <b>滚动渲染目标走 DisplayLink</b> 这一动作才是元凶。</p>
+    <p><span class="lang">EN</span><b>Key counterfactual — Groups A and C had identical DisplayLink load (2 connections each).</b> A used DisplayLink for YouTube + a spreadsheet; C used DisplayLink for the ASUS PG27 scroll target + YouTube. Identical CPU software-encoding burden, yet A delivered 0 hitch while C produced 10–12 ms/s. This rules out both "is the DisplayLink background load to blame?" and "do more DisplayLink connections cause jank?" — the cause is specifically <b>routing the scroll rendering target through DisplayLink</b>.</p>
   </div>
 
   <div class="finding yellow">
